@@ -792,34 +792,17 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
         return graph;
     }
 
-    // Count occurrences of each tool
-    const toolCounts = {};
-    toolSequence.forEach(tool => {
-        toolCounts[tool] = (toolCounts[tool] || 0) + 1;
-    });
-
-    // Build unique tool sequence
-    const uniqueTools = [];
-    const seen = new Set();
-    toolSequence.forEach(tool => {
-        if (!seen.has(tool)) {
-            uniqueTools.push(tool);
-            seen.add(tool);
-        }
-    });
-
-    // Build visual flow
+    // Build visual flow showing full sequence
     graph += `${colors.dim}┌─ ${colors.cyan}Tool Flow${colors.reset}\n`;
     graph += `${colors.dim}│${colors.reset}\n`;
 
-    for (let i = 0; i < uniqueTools.length; i++) {
-        const tool = uniqueTools[i];
-        const count = toolCounts[tool];
-        const isLast = i === uniqueTools.length - 1;
+    for (let i = 0; i < toolSequence.length; i++) {
+        const tool = toolSequence[i];
+        const isLast = i === toolSequence.length - 1;
         const connector = isLast ? '└─' : '├─';
         const nextConnector = isLast ? '  ' : '│ ';
 
-        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset} ${colors.yellow}(${count})${colors.reset}\n`;
+        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset}\n`;
 
         // Show arrow if not last
         if (!isLast) {

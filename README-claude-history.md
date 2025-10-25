@@ -348,12 +348,12 @@ WARNING: Consider adding rate limiting for production
 ## 📊 Tool Dependency Graph (Visual Workflow)
 
 ### What It Does
-Shows a visual ASCII tree of how tools are being used in sequence during your current session:
+Shows the complete sequence of tools used in your session as a visual ASCII tree:
 
-- Displays tools in the order they're called
-- Shows exact tool names and call counts
+- Displays all tool calls in chronological order
+- Shows exact tool names and bash commands
 - Fresh start each time you run the spy
-- Displays session datetime and tokens burned
+- Displays session start datetime and total tokens burned
 
 ### Basic Usage
 Press **'d'** during watch mode to view the dependency graph:
@@ -370,18 +370,22 @@ Started: 2025-10-25 14:32:15 • Tokens: 2,567
 
 ┌─ Tool Flow
 │
-├─ Read (4)
+├─ Read
 │  ↓
-├─ Grep (3)
+├─ Bash: git
 │  ↓
-├─ Edit (7)
+├─ Read
 │  ↓
-├─ Bash: git (5)
+├─ Grep
 │  ↓
-└─ Write (2)
+├─ Edit
+│  ↓
+├─ Bash: npm
+│  ↓
+└─ Write
 ```
 
-Each tool shows how many times it's been called since watch mode started. For Bash commands, the first command word is displayed. The session start time and token count are shown at the top to help you track resource usage.
+Shows the complete sequence of tool calls in the order they were executed. For Bash commands, the first command word is displayed (e.g., "Bash: git", "Bash: npm"). The session start time and token count are shown at the top.
 
 ---
 
