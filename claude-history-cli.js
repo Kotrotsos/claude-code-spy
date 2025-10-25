@@ -716,14 +716,22 @@ function generateStatsDisplay(conversation, elapsedSeconds) {
     const messageRate = elapsedSeconds > 0 ? (totalMessages / (elapsedSeconds / 60)).toFixed(1) : 0;
     const tokensPerMsg = totalMessages > 0 ? (totalTokens / totalMessages).toFixed(0) : 0;
 
-    const toolList = Object.entries(toolCounts)
+    // Format tools on multiple lines (max 4 tools per line)
+    const toolEntries = Object.entries(toolCounts)
         .map(([name, count]) => `${name}(${count})`)
-        .join(' • ');
+        .sort();
 
-    const stats = `${colors.dim}┌─ ${colors.cyan}Session Stats${colors.dim} ─────────────────────────────────────┐${colors.reset}
-${colors.dim}│${colors.reset} Messages: ${colors.bright}${totalMessages}${colors.reset} (${colors.green}${userCount}${colors.reset} user, ${colors.blue}${assistantCount}${colors.reset} assistant) ${colors.dim}│${colors.reset}
-${colors.dim}│${colors.reset} Tokens: ${colors.bright}${totalTokens}${colors.reset} (${tokensPerMsg}/msg) • Rate: ${messageRate} msg/min ${colors.dim}│${colors.reset}
-${toolList ? `${colors.dim}│${colors.reset} Tools: ${toolList} ${colors.dim}│${colors.reset}\n` : ''}${colors.dim}└──────────────────────────────────────────────────────────────────┘${colors.reset}`;
+    let toolLines = '';
+    if (toolEntries.length > 0) {
+        for (let i = 0; i < toolEntries.length; i += 4) {
+            toolLines += `${colors.dim}  •${colors.reset} ${toolEntries.slice(i, i + 4).join(' • ')}\n`;
+        }
+    }
+
+    const stats = `${colors.dim}┌─ ${colors.cyan}Session Stats${colors.reset}
+${colors.dim}│${colors.reset} Messages: ${colors.bright}${totalMessages}${colors.reset} (${colors.green}${userCount}${colors.reset} user, ${colors.blue}${assistantCount}${colors.reset} assistant)
+${colors.dim}│${colors.reset} Tokens: ${colors.bright}${totalTokens}${colors.reset} (${tokensPerMsg}/msg) • Rate: ${messageRate} msg/min
+${toolEntries.length > 0 ? `${colors.dim}│${colors.reset} Tools:\n${toolLines}${colors.dim}└${colors.reset}` : `${colors.dim}└${colors.reset}`}`;
 
     return stats;
 }
