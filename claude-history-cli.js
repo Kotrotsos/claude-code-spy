@@ -135,7 +135,7 @@ ${colors.cyan}OPTIONS:${colors.reset}
     ${colors.yellow}--session ID${colors.reset}       Show specific session by ID
     ${colors.yellow}-c, --current${colors.reset}      List all sessions for current directory
     ${colors.yellow}-w, --watch${colors.reset}        Watch current directory session in real-time (press 'a' for Archer, 's' for Security, 'd' for dependencies, q or Ctrl+C to exit)
-    ${colors.yellow}--minutes-since N${colors.reset}  Look back N minutes in history (use with --watch to see older tool calls)
+    ${colors.yellow}--minutes-since N${colors.reset}  Look back N minutes in the log (use with --watch to include historical context)
     ${colors.yellow}--archer${colors.reset}           Analyze recent conversations with LLM (requires OPENAI_API_KEY)
     ${colors.yellow}--archer-limit N${colors.reset}   Number of recent commands to analyze (default: 10)
     ${colors.yellow}--nano${colors.reset}             Use faster gpt-3.5-turbo model instead of gpt-4o-mini (faster & cheaper)
@@ -1244,17 +1244,28 @@ async function watchCurrentSession() {
     let watchStartIndex = lastMessageCount; // Default: start from now
 
     if (config.minutesSince && config.minutesSince > 0) {
-        // Calculate cutoff time (now - N minutes)
-        const cutoffTime = new Date(Date.now() - config.minutesSince * 60000);
+        // Find the last message in the conversation to use as reference point
+        let lastMessageTime = null;
+        for (let i = initialConversation.length - 1; i >= 0; i--) {
+            if (initialConversation[i].timestamp) {
+                lastMessageTime = new Date(initialConversation[i].timestamp);
+                break;
+            }
+        }
 
-        // Find the first message after the cutoff time
-        for (let i = 0; i < initialConversation.length; i++) {
-            const entry = initialConversation[i];
-            if (entry.timestamp) {
-                const entryTime = new Date(entry.timestamp);
-                if (entryTime >= cutoffTime) {
-                    watchStartIndex = i;
-                    break;
+        if (lastMessageTime) {
+            // Calculate cutoff time relative to last message (N minutes before it)
+            const cutoffTime = new Date(lastMessageTime.getTime() - config.minutesSince * 60000);
+
+            // Find the first message at or after the cutoff time
+            for (let i = 0; i < initialConversation.length; i++) {
+                const entry = initialConversation[i];
+                if (entry.timestamp) {
+                    const entryTime = new Date(entry.timestamp);
+                    if (entryTime >= cutoffTime) {
+                        watchStartIndex = i;
+                        break;
+                    }
                 }
             }
         }

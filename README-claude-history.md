@@ -240,35 +240,36 @@ claude-code-spy v2.0.17 • 🕵️  Real-time monitoring
 
 ### Looking Back in Time with --minutes-since
 
-The `--minutes-since` flag lets you expand the watch window to include historical messages from N minutes ago:
+The `--minutes-since` flag lets you expand the watch window to include historical messages from the conversation log. It looks back **in log time**, not real time—so it travels backwards from the last message recorded:
 
 ```bash
-# Watch with last 5 minutes of history
+# Watch with last 5 minutes of log history
 ./claude-history --watch --minutes-since 5
 
-# Watch with last 30 minutes of history
+# Watch with last 30 minutes of log history
 ./claude-history --watch --minutes-since 30
 
-# Watch with last hour of history
+# Watch with last hour of log history
 ./claude-history --watch --minutes-since 60
 ```
 
 **What it does:**
 - Normally, watch mode only shows tool calls and activity **since the spy started**
-- With `--minutes-since 5`, the spy will include all tool calls from the last 5 minutes, even if you started the spy just now
+- With `--minutes-since 5`, the spy travels back 5 minutes **in the log** from the last message and starts watching from there
 - All analyses (tool dependency graph, bash history, file changes, time statistics) will include this historical context
 - The stats display will show metrics for this expanded time window
+- **Key insight:** If no activity occurred for an hour, using `--minutes-since 10` shows the work from 50 minutes ago onwards (10 minutes before the last message)
 - **Use case:** Join an ongoing session and catch up on what Claude has been doing
 
 **Examples:**
 ```bash
-# You're watching a project. Claude has been working for 20 minutes.
-# Start the spy now, but see the last 10 minutes of work:
+# You're watching a project. Claude's last activity was 30 minutes ago.
+# Start the spy now, but see the last 10 minutes of work (from 20 minutes ago):
 ./claude-history --watch --minutes-since 10
 
-# Then press 'd' to see dependency graph from the last 10 minutes
-# Press 'b' to see bash commands from the last 10 minutes
-# Press 'f' to see file changes from the last 10 minutes
+# Then press 'd' to see dependency graph from the last 10 minutes of the log
+# Press 'b' to see bash commands from the last 10 minutes of the log
+# Press 'f' to see file changes from the last 10 minutes of the log
 ```
 
 ### Quick Help
