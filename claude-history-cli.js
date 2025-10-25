@@ -736,6 +736,50 @@ ${toolEntries.length > 0 ? `${colors.dim}│${colors.reset} Tools:\n${toolLines}
     return stats;
 }
 
+function generateToolDependencyGraph(conversation) {
+    const toolSequence = [];
+
+    // Extract tool usage sequence from conversation
+    for (const entry of conversation) {
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use') {
+                        toolSequence.push(item.name || 'unknown');
+                    }
+                });
+            }
+        }
+    }
+
+    if (toolSequence.length === 0) {
+        return `${colors.yellow}No tools used in this session${colors.reset}`;
+    }
+
+    // Build visual flow
+    let graph = `${colors.dim}┌─ ${colors.cyan}Tool Dependency Flow${colors.reset}\n`;
+    graph += `${colors.dim}│${colors.reset}\n`;
+
+    for (let i = 0; i < toolSequence.length; i++) {
+        const tool = toolSequence[i];
+        const isLast = i === toolSequence.length - 1;
+        const connector = isLast ? '└─' : '├─';
+        const nextConnector = isLast ? '  ' : '│ ';
+
+        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset}\n`;
+
+        // Show if next tool is different (transition)
+        if (i < toolSequence.length - 1 && toolSequence[i] !== toolSequence[i + 1]) {
+            graph += `${colors.dim}│${colors.reset} ${nextConnector}  ↓\n`;
+        }
+    }
+
+    graph += `${colors.dim}└${colors.reset}`;
+
+    return graph;
+}
+
 async function watchCurrentSession() {
     const currentPath = process.cwd();
     const encodedPath = encodeProjectPath(currentPath);
@@ -859,6 +903,13 @@ async function watchCurrentSession() {
                 console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
                 analysisPending = false;
             }
+            // Press 'd' to show tool dependency graph
+            if (key && key.name === 'd') {
+                const currentConversation = await readConversation(sessionFile);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(generateToolDependencyGraph(currentConversation));
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+            }
         });
     }
 
@@ -913,10 +964,6 @@ async function watchCurrentSession() {
                 lastMessageCount = currentConversation.length;
                 lastMessageTime = Date.now();
                 analysisPending = false;
-                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                const elapsedSeconds = Math.floor((Date.now() - watchStartTime) / 1000);
-                console.log(generateStatsDisplay(currentConversation, elapsedSeconds));
-                console.log('');
             } else {
                 // Check for idle timeout (15 seconds) with minimum token count
                 const idleTime = Date.now() - lastMessageTime;
