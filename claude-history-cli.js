@@ -914,6 +914,8 @@ async function watchCurrentSession() {
                                 process.stdout.write('\r' + ' '.repeat(120) + '\r');
                                 const stats = getToolStats(currentConversation);
                                 console.log(`\n${colors.dim}Stats: ${stats.totalTools} tool calls (${stats.toolList}) | ${checkNewTokens} tokens${colors.reset}`);
+                                clearInterval(countdownInterval);
+                                countdownInterval = null;
                                 return;
                             }
 
