@@ -687,6 +687,47 @@ function showSplashScreen() {
     console.log(splash);
 }
 
+function generateStatsDisplay(conversation, elapsedSeconds) {
+    let userCount = 0;
+    let assistantCount = 0;
+    let totalTokens = 0;
+    const toolCounts = {};
+
+    for (const entry of conversation) {
+        if (entry.type === 'user') {
+            userCount++;
+        } else if (entry.type === 'assistant') {
+            assistantCount++;
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'text') {
+                        totalTokens += Math.ceil(item.text.length / 4);
+                    } else if (item.type === 'tool_use') {
+                        const toolName = item.name || 'unknown';
+                        toolCounts[toolName] = (toolCounts[toolName] || 0) + 1;
+                    }
+                });
+            }
+        }
+    }
+
+    const totalMessages = userCount + assistantCount;
+    const messageRate = elapsedSeconds > 0 ? (totalMessages / (elapsedSeconds / 60)).toFixed(1) : 0;
+    const tokensPerMsg = totalMessages > 0 ? (totalTokens / totalMessages).toFixed(0) : 0;
+
+    const toolList = Object.entries(toolCounts)
+        .map(([name, count]) => `${name}(${count})`)
+        .join(' • ');
+
+    const stats = `${colors.dim}┌─ ${colors.cyan}Session Stats${colors.dim} ─────────────────────────────────────┐${colors.reset}
+${colors.dim}│${colors.reset} Messages: ${colors.bright}${totalMessages}${colors.reset} (${colors.green}${userCount}${colors.reset} user, ${colors.blue}${assistantCount}${colors.reset} assistant) ${colors.dim}│${colors.reset}
+${colors.dim}│${colors.reset} Tokens: ${colors.bright}${totalTokens}${colors.reset} (${tokensPerMsg}/msg) • Rate: ${messageRate} msg/min ${colors.dim}│${colors.reset}
+${toolList ? `${colors.dim}│${colors.reset} Tools: ${toolList} ${colors.dim}│${colors.reset}\n` : ''}${colors.dim}└──────────────────────────────────────────────────────────────────┘${colors.reset}`;
+
+    return stats;
+}
+
 async function watchCurrentSession() {
     const currentPath = process.cwd();
     const encodedPath = encodeProjectPath(currentPath);
@@ -829,6 +870,11 @@ async function watchCurrentSession() {
     const initialConversation = await readConversation(sessionFile);
     lastMessageCount = initialConversation.length;
 
+    // Show initial stats
+    const watchStartTime = Date.now();
+    console.log(generateStatsDisplay(initialConversation, 0));
+    console.log('');
+
     // Track idle time for auto-summary
     let lastMessageTime = Date.now();
     let analysisPending = false;
@@ -860,7 +906,9 @@ async function watchCurrentSession() {
                 lastMessageTime = Date.now();
                 analysisPending = false;
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                console.log(`${colors.dim}Watching for new messages... (${lastMessageCount} messages so far)${colors.reset}`);
+                const elapsedSeconds = Math.floor((Date.now() - watchStartTime) / 1000);
+                console.log(generateStatsDisplay(currentConversation, elapsedSeconds));
+                console.log('');
             } else {
                 // Check for idle timeout (15 seconds) with minimum token count
                 const idleTime = Date.now() - lastMessageTime;
@@ -890,6 +938,28 @@ async function watchCurrentSession() {
             // File might be in the middle of being written, ignore
         }
     }, 500); // Poll every 500ms
+
+    // Update stats display every 5 seconds
+    let lastStatsDisplay = Date.now();
+    const statsInterval = setInterval(async () => {
+        if (isExiting) {
+            clearInterval(statsInterval);
+            return;
+        }
+
+        try {
+            const now = Date.now();
+            // Only update every 5 seconds
+            if (now - lastStatsDisplay >= 5000) {
+                const currentConversation = await readConversation(sessionFile);
+                const elapsedSeconds = Math.floor((now - watchStartTime) / 1000);
+                console.log(`\n${generateStatsDisplay(currentConversation, elapsedSeconds)}`);
+                lastStatsDisplay = now;
+            }
+        } catch (e) {
+            // Ignore read errors
+        }
+    }, 1000); // Check every second
 }
 
 function getToolStats(conversation) {
