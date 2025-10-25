@@ -736,6 +736,36 @@ async function watchCurrentSession() {
                 }
                 process.exit(0);
             }
+            // Press 's' to manually run Security analysis
+            if (key && key.name === 's') {
+                if (analysisPending) {
+                    console.log(`\n${colors.yellow}Analysis already running...${colors.reset}`);
+                    return;
+                }
+                analysisPending = true;
+                if (countdownInterval) clearInterval(countdownInterval);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(`${colors.dim}Running Security Analysis (manual trigger)...${colors.reset}\n`);
+                const currentConversation = await readConversation(sessionFile);
+                let totalTokens = 0;
+                for (const entry of currentConversation) {
+                    if (entry.type === 'assistant') {
+                        const content = entry.message?.content || [];
+                        if (Array.isArray(content)) {
+                            content.forEach(item => {
+                                if (item.type === 'text') {
+                                    totalTokens += Math.ceil(item.text.length / 4);
+                                }
+                            });
+                        }
+                    }
+                }
+                await runSecurityAnalysisInline(sessionFile);
+                lastAnalysisTokenCount = totalTokens;
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
+                analysisPending = false;
+            }
             // Press 'a' to manually run Archer
             if (key && key.name === 'a') {
                 if (analysisPending) {
@@ -871,14 +901,30 @@ async function watchCurrentSession() {
                             }
                             const checkNewTokens = checkTokens - lastAnalysisTokenCount;
 
+                            // Show stats after 5 seconds of idle
+                            if (currentIdleSeconds === 5) {
+                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
+                                const stats = getToolStats(currentConversation);
+                                console.log(`\n${colors.dim}Stats: ${stats.totalTools} tool calls (${stats.toolList}) | ${checkNewTokens} tokens${colors.reset}`);
+                                return;
+                            }
+
+                            // Stop showing timer after 15 seconds
+                            if (currentIdleSeconds >= 15) {
+                                clearInterval(countdownInterval);
+                                countdownInterval = null;
+                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
+                                return;
+                            }
+
                             if (currentIdleSeconds >= 15 && checkNewTokens >= 1000) {
                                 statusLine = `${colors.green}✓ Ready to summarize! (Idle: ${currentIdleSeconds}s | Tokens: ${checkNewTokens}) | Press 'a' now or wait for auto-summary${colors.reset}`;
-                            } else {
+                            } else if (currentIdleSeconds < 5) {
                                 const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
                                 const remainingTokens = Math.max(0, 1000 - checkNewTokens);
-                                statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${checkNewTokens}/1000 (need ${remainingTokens} more) | Press 'a' for summary now${colors.reset}`;
+                                statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${checkNewTokens}/1000 (need ${remainingTokens} more) | Press 'a' for summary, 's' for security check${colors.reset}`;
+                                process.stdout.write(`\r${statusLine}`);
                             }
-                            process.stdout.write(`\r${statusLine}`);
                         }, 1000);
                     }
                 } else if (countdownInterval && (idleTime <= 3000 || analysisPending || (newTokens >= 1000 && idleSeconds >= 15))) {
@@ -905,6 +951,33 @@ async function watchCurrentSession() {
             // File might be in the middle of being written, ignore
         }
     }, 500); // Poll every 500ms
+}
+
+function getToolStats(conversation) {
+    const toolCounts = {};
+    const toolTypes = new Set();
+
+    for (const entry of conversation) {
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use') {
+                        const toolName = item.name || 'unknown';
+                        toolCounts[toolName] = (toolCounts[toolName] || 0) + 1;
+                        toolTypes.add(toolName);
+                    }
+                });
+            }
+        }
+    }
+
+    const totalTools = Object.values(toolCounts).reduce((a, b) => a + b, 0);
+    const toolList = Object.entries(toolCounts)
+        .map(([name, count]) => `${name}(${count})`)
+        .join(', ');
+
+    return { totalTools, toolList, toolTypes: Array.from(toolTypes) };
 }
 
 async function runArcherAnalysisInline(sessionFile) {
@@ -1005,12 +1078,11 @@ async function runArcherAnalysisInline(sessionFile) {
 
 Your analysis should cover:
 1. **Intent Summary**: What was the developer trying to accomplish?
-2. **Response Alignment**: Did Claude's responses properly address the user's intent?
-3. **Logical Steps**: What steps did Claude take? Were they appropriate?
-4. **Potential Misalignments**: Are there any gaps, misunderstandings, or areas where Claude might have missed the point?
-5. **Overall Assessment**: Brief verdict on conversation quality and helpfulness.
+2. **Security Tasks**: Any security-related tasks, implementations, or concerns identified?
+3. **Potential Issues**: Any gaps, misunderstandings, or areas that could be improved?
+4. **Overall Assessment**: Brief verdict on conversation quality and helpfulness.
 
-Be concise but thorough. Highlight any concerning misalignments in red flags.`
+Format with empty lines between sections. Be concise and pragmatic.`
                     },
                     {
                         role: 'user',
@@ -1031,14 +1103,20 @@ Be concise but thorough. Highlight any concerning misalignments in red flags.`
         const data = await response.json();
         const analysis = data.choices[0].message.content;
 
-        // Display analysis in orange (inline format)
+        // Display analysis in orange (inline format with proper spacing)
         console.log(`${colors.bright}${colors.orange}🏹 ARCHER SUMMARY${colors.reset}\n`);
 
-        // Split into lines and display in orange
-        const analysisLines = analysis.split('\n');
-        analysisLines.forEach(line => {
-            if (line.trim()) {
-                console.log(`${colors.orange}${line}${colors.reset}`);
+        // Display analysis with proper paragraph spacing
+        const paragraphs = analysis.split('\n\n');
+        paragraphs.forEach((para, idx) => {
+            const lines = para.split('\n');
+            lines.forEach(line => {
+                if (line.trim()) {
+                    console.log(`${colors.orange}${line}${colors.reset}`);
+                }
+            });
+            if (idx < paragraphs.length - 1) {
+                console.log(''); // Empty line between paragraphs
             }
         });
 
@@ -1046,6 +1124,182 @@ Be concise but thorough. Highlight any concerning misalignments in red flags.`
 
     } catch (error) {
         console.error(`\n${colors.red}Error generating summary: ${error.message}${colors.reset}`);
+
+        if (error.message.includes('fetch')) {
+            console.log(`${colors.yellow}Network error - check:${colors.reset}`);
+            console.log(`  1. Internet connection`);
+            console.log(`  2. OpenAI API key: ${apiKey ? '✓ Set' : '✗ Not set'}`);
+            console.log(`  3. API rate limits: https://platform.openai.com/usage`);
+        }
+    }
+}
+
+async function runSecurityAnalysisInline(sessionFile) {
+    // Check for OpenAI API key
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        console.log(`${colors.red}⚠ Security Analysis requires OPENAI_API_KEY${colors.reset}`);
+        return;
+    }
+
+    try {
+        // Read conversation
+        const conversation = await readConversation(sessionFile);
+
+        // Get last N user/assistant pairs
+        const interactions = [];
+        let currentInteraction = null;
+
+        for (const entry of conversation) {
+            if (entry.type === 'user') {
+                const content = entry.message?.content || '';
+                if (Array.isArray(content) && content.length > 0 && content[0].type === 'tool_result') {
+                    continue;
+                }
+
+                if (currentInteraction) {
+                    interactions.push(currentInteraction);
+                }
+                currentInteraction = {
+                    user: typeof content === 'string' ? content : content[0]?.text || '',
+                    assistant: '',
+                    tools: []
+                };
+            } else if (entry.type === 'assistant' && currentInteraction) {
+                const content = entry.message?.content || [];
+
+                if (Array.isArray(content)) {
+                    content.forEach(item => {
+                        if (item.type === 'text') {
+                            currentInteraction.assistant += item.text + '\n';
+                        } else if (item.type === 'tool_use') {
+                            currentInteraction.tools.push({
+                                name: item.name,
+                                input: item.input
+                            });
+                        }
+                    });
+                } else if (typeof content === 'string') {
+                    currentInteraction.assistant = content;
+                }
+            }
+        }
+
+        if (currentInteraction) {
+            interactions.push(currentInteraction);
+        }
+
+        // Get last N interactions
+        const recentInteractions = interactions.slice(-config.archerLimit);
+
+        if (recentInteractions.length === 0) {
+            console.log(`${colors.yellow}No interactions to analyze${colors.reset}`);
+            return;
+        }
+
+        // Format for LLM
+        const conversationText = recentInteractions.map((interaction, idx) => {
+            let text = `\n## Interaction ${idx + 1}\n\n`;
+            text += `**User Input:**\n${interaction.user}\n\n`;
+
+            if (interaction.tools.length > 0) {
+                text += `**Tools Used:**\n`;
+                interaction.tools.forEach(tool => {
+                    text += `- ${tool.name}: ${JSON.stringify(tool.input, null, 2)}\n`;
+                });
+                text += `\n`;
+            }
+
+            text += `**Claude's Response:**\n${interaction.assistant}\n`;
+            return text;
+        }).join('\n---\n');
+
+        // Select model based on nano flag
+        const model = config.nanoMode ? 'gpt-4-turbo' : 'gpt-4o-mini';
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                signal: controller.signal,
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are a security expert analyzing Claude Code conversations. Evaluate the conversation for:
+1. **Secure Implementations**: Identify proper security practices, secure coding patterns, and safe implementations.
+2. **Security Bad Practices**: Flag any security anti-patterns, vulnerabilities, or risky behaviors (e.g., hardcoded credentials, insecure APIs, improper authentication, SQL injection risks, etc).
+3. **Data Protection**: Assess handling of sensitive data, credentials, keys, and PII.
+4. **Recommendations**: Suggest security improvements or best practices.
+
+Be direct and specific. Use clear severity levels: CRITICAL, WARNING, INFO.`
+                        },
+                        {
+                            role: 'user',
+                            content: `Analyze this conversation for security:\n\n${conversationText}`
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 1200
+                })
+            });
+
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error(`${colors.red}OpenAI API Error: ${response.status}${colors.reset}`);
+                if (response.status === 401) {
+                    console.log(`${colors.yellow}Invalid API key - check your OPENAI_API_KEY${colors.reset}`);
+                } else if (response.status === 429) {
+                    console.log(`${colors.yellow}Rate limited - wait a moment and try again${colors.reset}`);
+                }
+                return;
+            }
+        } catch (fetchError) {
+            clearTimeout(timeout);
+            if (fetchError.name === 'AbortError') {
+                throw new Error('API request timeout (30s) - network may be slow');
+            }
+            throw fetchError;
+        }
+
+        const data = await response.json();
+        const analysis = data.choices[0].message.content;
+
+        // Display analysis in red/yellow for security warnings
+        console.log(`${colors.bright}${colors.red}🔒 SECURITY ANALYSIS${colors.reset}\n`);
+
+        // Display analysis with proper paragraph spacing
+        const paragraphs = analysis.split('\n\n');
+        paragraphs.forEach((para, idx) => {
+            const lines = para.split('\n');
+            lines.forEach(line => {
+                // Highlight CRITICAL, WARNING in red/yellow
+                if (line.includes('CRITICAL')) {
+                    console.log(`${colors.red}${line}${colors.reset}`);
+                } else if (line.includes('WARNING')) {
+                    console.log(`${colors.yellow}${line}${colors.reset}`);
+                } else if (line.trim()) {
+                    console.log(`${colors.white}${line}${colors.reset}`);
+                }
+            });
+            if (idx < paragraphs.length - 1) {
+                console.log(''); // Empty line between paragraphs
+            }
+        });
+
+        console.log(`\n${colors.dim}Model: ${model}${config.nanoMode ? ' (nano/fast)' : ''} | Tokens: ${data.usage.total_tokens}${colors.reset}`);
+
+    } catch (error) {
+        console.error(`\n${colors.red}Error generating security analysis: ${error.message}${colors.reset}`);
 
         if (error.message.includes('fetch')) {
             console.log(`${colors.yellow}Network error - check:${colors.reset}`);
@@ -1192,12 +1446,11 @@ async function runArcherAnalysis() {
 
 Your analysis should cover:
 1. **Intent Summary**: What was the developer trying to accomplish?
-2. **Response Alignment**: Did Claude's responses properly address the user's intent?
-3. **Logical Steps**: What steps did Claude take? Were they appropriate?
-4. **Potential Misalignments**: Are there any gaps, misunderstandings, or areas where Claude might have missed the point?
-5. **Overall Assessment**: Brief verdict on conversation quality and helpfulness.
+2. **Security Tasks**: Any security-related tasks, implementations, or concerns identified?
+3. **Potential Issues**: Any gaps, misunderstandings, or areas that could be improved?
+4. **Overall Assessment**: Brief verdict on conversation quality and helpfulness.
 
-Be concise but thorough. Highlight any concerning misalignments in red flags.`
+Format with empty lines between sections. Be concise and pragmatic.`
                     },
                     {
                         role: 'user',
