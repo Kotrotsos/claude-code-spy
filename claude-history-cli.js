@@ -919,7 +919,7 @@ async function watchCurrentSession() {
                         }
                     }
                 }
-                await runSecurityAnalysisInline(sessionFile, lastMessageCount);
+                await runSecurityAnalysisInline(sessionFile, watchStartIndex);
                 lastAnalysisTokenCount = totalTokens;
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
@@ -949,7 +949,7 @@ async function watchCurrentSession() {
                         }
                     }
                 }
-                await runArcherAnalysisInline(sessionFile, lastMessageCount);
+                await runArcherAnalysisInline(sessionFile, watchStartIndex);
                 lastAnalysisTokenCount = totalTokens;
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
@@ -959,7 +959,7 @@ async function watchCurrentSession() {
             if (key && key.name === 'd') {
                 const currentConversation = await readConversation(sessionFile);
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                console.log(generateToolDependencyGraph(currentConversation, sessionStartTime, lastMessageCount));
+                console.log(generateToolDependencyGraph(currentConversation, sessionStartTime, watchStartIndex));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
 
                 // Show recent git commits from session start date
@@ -996,6 +996,7 @@ async function watchCurrentSession() {
     // Get initial message count but don't display history
     const initialConversation = await readConversation(sessionFile);
     lastMessageCount = initialConversation.length;
+    const watchStartIndex = lastMessageCount; // Track starting index for analysis/graphs
 
     // Show initial stats
     const watchStartTime = Date.now();
