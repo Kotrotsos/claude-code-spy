@@ -43,7 +43,8 @@ let config = {
     watchMode: false,
     archerMode: false,
     archerLimit: 10,
-    nanoMode: false
+    nanoMode: false,
+    minutesSince: null
 };
 
 // Parse arguments
@@ -108,6 +109,9 @@ for (let i = 0; i < args.length; i++) {
         case '--nano':
             config.nanoMode = true;
             break;
+        case '--minutes-since':
+            config.minutesSince = parseInt(args[++i]);
+            break;
     }
 }
 
@@ -131,6 +135,7 @@ ${colors.cyan}OPTIONS:${colors.reset}
     ${colors.yellow}--session ID${colors.reset}       Show specific session by ID
     ${colors.yellow}-c, --current${colors.reset}      List all sessions for current directory
     ${colors.yellow}-w, --watch${colors.reset}        Watch current directory session in real-time (press 'a' for Archer, 's' for Security, 'd' for dependencies, q or Ctrl+C to exit)
+    ${colors.yellow}--minutes-since N${colors.reset}  Look back N minutes in history (use with --watch to see older tool calls)
     ${colors.yellow}--archer${colors.reset}           Analyze recent conversations with LLM (requires OPENAI_API_KEY)
     ${colors.yellow}--archer-limit N${colors.reset}   Number of recent commands to analyze (default: 10)
     ${colors.yellow}--nano${colors.reset}             Use faster gpt-3.5-turbo model instead of gpt-4o-mini (faster & cheaper)
@@ -157,6 +162,9 @@ ${colors.cyan}EXAMPLES:${colors.reset}
 
     ${colors.gray}# Watch current session in real-time${colors.reset}
     node claude-history-cli.js --watch
+
+    ${colors.gray}# Watch session but include last 5 minutes of history${colors.reset}
+    node claude-history-cli.js --watch --minutes-since 5
 
     ${colors.gray}# Analyze last 10 conversations with AI${colors.reset}
     node claude-history-cli.js --archer
@@ -1231,11 +1239,30 @@ async function watchCurrentSession() {
     // Get initial message count but don't display history
     const initialConversation = await readConversation(sessionFile);
     lastMessageCount = initialConversation.length;
-    const watchStartIndex = lastMessageCount; // Track starting index for analysis/graphs
+
+    // Calculate watchStartIndex based on minutes-since flag
+    let watchStartIndex = lastMessageCount; // Default: start from now
+
+    if (config.minutesSince && config.minutesSince > 0) {
+        // Calculate cutoff time (now - N minutes)
+        const cutoffTime = new Date(Date.now() - config.minutesSince * 60000);
+
+        // Find the first message after the cutoff time
+        for (let i = 0; i < initialConversation.length; i++) {
+            const entry = initialConversation[i];
+            if (entry.timestamp) {
+                const entryTime = new Date(entry.timestamp);
+                if (entryTime >= cutoffTime) {
+                    watchStartIndex = i;
+                    break;
+                }
+            }
+        }
+    }
 
     // Show initial stats
     const watchStartTime = Date.now();
-    console.log(generateStatsDisplay(initialConversation, 0));
+    console.log(generateStatsDisplay(initialConversation, watchStartIndex));
     console.log('');
 
     // Track idle time for auto-summary

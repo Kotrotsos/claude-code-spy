@@ -231,8 +231,44 @@ claude-code-spy v2.0.17 • 🕵️  Real-time monitoring
 # Analyze more interactions (default: 10)
 ./claude-history --watch --archer-limit 20
 
+# Watch with historical context (last 5 minutes)
+./claude-history --watch --minutes-since 5
+
 # Combine options
-./claude-history --watch --nano --archer-limit 15
+./claude-history --watch --nano --archer-limit 15 --minutes-since 10
+```
+
+### Looking Back in Time with --minutes-since
+
+The `--minutes-since` flag lets you expand the watch window to include historical messages from N minutes ago:
+
+```bash
+# Watch with last 5 minutes of history
+./claude-history --watch --minutes-since 5
+
+# Watch with last 30 minutes of history
+./claude-history --watch --minutes-since 30
+
+# Watch with last hour of history
+./claude-history --watch --minutes-since 60
+```
+
+**What it does:**
+- Normally, watch mode only shows tool calls and activity **since the spy started**
+- With `--minutes-since 5`, the spy will include all tool calls from the last 5 minutes, even if you started the spy just now
+- All analyses (tool dependency graph, bash history, file changes, time statistics) will include this historical context
+- The stats display will show metrics for this expanded time window
+- **Use case:** Join an ongoing session and catch up on what Claude has been doing
+
+**Examples:**
+```bash
+# You're watching a project. Claude has been working for 20 minutes.
+# Start the spy now, but see the last 10 minutes of work:
+./claude-history --watch --minutes-since 10
+
+# Then press 'd' to see dependency graph from the last 10 minutes
+# Press 'b' to see bash commands from the last 10 minutes
+# Press 'f' to see file changes from the last 10 minutes
 ```
 
 ### Quick Help
