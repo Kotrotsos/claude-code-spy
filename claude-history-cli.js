@@ -768,6 +768,14 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null, star
                             // Truncate to ~60 chars if too long
                             const displayCmd = fullCommand.length > 60 ? fullCommand.substring(0, 57) + '...' : fullCommand;
                             toolDisplay = hasError ? `${toolName}: ${displayCmd} ${colors.red}[ERROR]${colors.reset}` : `${toolName}: ${displayCmd}`;
+                        } else if (toolName === 'Read' && item.input && item.input.file_path) {
+                            const filePath = item.input.file_path;
+                            const fileName = filePath.split('/').pop();
+                            toolDisplay = hasError ? `${toolName}: ${fileName} ${colors.red}[ERROR]${colors.reset}` : `${toolName}: ${fileName}`;
+                        } else if (toolName === 'Edit' && item.input && item.input.file_path) {
+                            const filePath = item.input.file_path;
+                            const fileName = filePath.split('/').pop();
+                            toolDisplay = hasError ? `${toolName}: ${fileName} ${colors.red}[ERROR]${colors.reset}` : `${toolName}: ${fileName}`;
                         } else if (hasError) {
                             toolDisplay = `${toolName} ${colors.red}[ERROR]${colors.reset}`;
                         }
@@ -912,6 +920,101 @@ function getFileChangesTracker(conversation, startIndex = 0) {
     return output;
 }
 
+function getTimeStatistics(conversation, startIndex = 0, sessionStartTime = null) {
+    const toolTimings = {};
+    let totalToolTime = 0;
+    let totalWaitTime = 0;
+    let responseCount = 0;
+    const latencies = [];
+
+    // Track timestamps for latency calculation
+    let lastUserTime = null;
+    let lastAssistantTime = null;
+
+    for (let i = startIndex; i < conversation.length; i++) {
+        const entry = conversation[i];
+        const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
+
+        if (entry.type === 'user') {
+            lastUserTime = timestamp;
+        } else if (entry.type === 'assistant') {
+            lastAssistantTime = timestamp;
+
+            // Calculate latency (time from user message to assistant response)
+            if (lastUserTime && timestamp) {
+                const latency = (timestamp - lastUserTime) / 1000; // seconds
+                latencies.push(latency);
+                totalWaitTime += latency;
+                responseCount++;
+            }
+
+            // Track tool execution times
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach((item, idx) => {
+                    if (item.type === 'tool_use') {
+                        const toolName = item.name || 'unknown';
+
+                        // Try to estimate tool execution time
+                        // Look for tool_result in same message
+                        if (content[idx + 1] && content[idx + 1].type === 'tool_result') {
+                            if (!toolTimings[toolName]) {
+                                toolTimings[toolName] = { count: 0, totalTime: 0 };
+                            }
+                            // Rough estimate: 100ms per tool call (adjust as needed)
+                            const estimatedTime = 0.1;
+                            toolTimings[toolName].count++;
+                            toolTimings[toolName].totalTime += estimatedTime;
+                            totalToolTime += estimatedTime;
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    // Calculate wall time
+    const wallTimeMs = sessionStartTime ? Date.now() - sessionStartTime : 0;
+    const wallTimeMinutes = Math.floor(wallTimeMs / 60000);
+    const wallTimeSeconds = Math.floor((wallTimeMs % 60000) / 1000);
+
+    // Calculate averages
+    const avgLatency = responseCount > 0 ? totalWaitTime / responseCount : 0;
+    const avgLatencyStr = avgLatency.toFixed(2);
+
+    // Build output
+    let output = `${colors.cyan}Time Statistics${colors.reset}\n`;
+    output += `${colors.dim}Session Duration${colors.reset}\n`;
+    output += `  Wall Time: ${colors.yellow}${wallTimeMinutes}m ${wallTimeSeconds}s${colors.reset}\n`;
+    output += `  Responses: ${colors.yellow}${responseCount}${colors.reset}\n`;
+    output += `  Avg Latency: ${colors.green}${avgLatencyStr}s${colors.reset}\n\n`;
+
+    // Tool execution breakdown
+    if (Object.keys(toolTimings).length > 0) {
+        output += `${colors.dim}Tool Execution Time${colors.reset}\n`;
+        const sortedTools = Object.entries(toolTimings)
+            .sort((a, b) => b[1].totalTime - a[1].totalTime);
+
+        sortedTools.forEach(([tool, data]) => {
+            const avgTime = (data.totalTime / data.count).toFixed(3);
+            output += `  ${colors.green}${tool}${colors.reset}: ${data.count}x (~${avgTime}s each)\n`;
+        });
+        output += `  Total: ${colors.yellow}${totalToolTime.toFixed(2)}s${colors.reset}\n\n`;
+    }
+
+    // Latency breakdown
+    if (latencies.length > 0) {
+        const minLatency = Math.min(...latencies).toFixed(2);
+        const maxLatency = Math.max(...latencies).toFixed(2);
+        output += `${colors.dim}Response Latency Breakdown${colors.reset}\n`;
+        output += `  Fastest: ${colors.green}${minLatency}s${colors.reset}\n`;
+        output += `  Slowest: ${colors.red}${maxLatency}s${colors.reset}\n`;
+        output += `  Average: ${colors.yellow}${avgLatencyStr}s${colors.reset}\n`;
+    }
+
+    return output;
+}
+
 function getKeyboardShortcuts() {
     const shortcuts = [
         { key: 'a', action: 'Run Archer analysis', description: 'AI-powered conversation review' },
@@ -919,6 +1022,7 @@ function getKeyboardShortcuts() {
         { key: 'd', action: 'Show tool dependency graph', description: 'Tool sequence + git commits' },
         { key: 'b', action: 'Bash command history', description: 'All commands run this session' },
         { key: 'f', action: 'File changes tracker', description: 'Files edited with LOC count' },
+        { key: 't', action: 'Time statistics', description: 'Wall time, latency, tool timings' },
         { key: 'h', action: 'Help & shortcuts', description: 'This menu' },
         { key: 'q', action: 'Exit watch mode', description: 'Press q or Ctrl+C' }
     ];
@@ -1100,6 +1204,13 @@ async function watchCurrentSession() {
             if (key && key.name === 'h') {
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(getKeyboardShortcuts());
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+            }
+            // Press 't' to show time statistics
+            if (key && key.name === 't') {
+                const currentConversation = await readConversation(sessionFile);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(getTimeStatistics(currentConversation, watchStartIndex, sessionStartTime));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
         });

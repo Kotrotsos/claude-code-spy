@@ -203,6 +203,7 @@ export OPENAI_API_KEY='sk-...'  # Optional: for analysis features
 | **'d'** | Show tool dependency graph with git commits |
 | **'b'** | Show bash command history |
 | **'f'** | Show file changes tracker with LOC count |
+| **'t'** | Show time statistics (wall time, latency, timings) |
 | **'h'** | Show keyboard shortcuts help |
 | **'q' or Ctrl+C** | Exit watch mode |
 
@@ -399,6 +400,50 @@ package.json (1 edit, ~2 LOC) ⚠ HIGH
 
 ---
 
+## ⏱️ Time Statistics (Session Metrics)
+
+### What It Does
+Displays comprehensive timing metrics for your session including wall time, response latency, and tool execution estimates:
+
+```
+Press 't' during watch mode
+
+Time Statistics
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Session Duration
+  Wall Time: 5m 23s
+  Responses: 12
+  Avg Latency: 3.45s
+
+Tool Execution Time
+  Edit: 5x (~0.100s each)
+  Read: 3x (~0.100s each)
+  Bash: 2x (~0.100s each)
+  Total: 1.00s
+
+Response Latency Breakdown
+  Fastest: 1.23s
+  Slowest: 5.67s
+  Average: 3.45s
+```
+
+### Metrics Explained
+
+- **Wall Time** - Total time elapsed since watch mode started
+- **Responses** - Number of Claude responses received during the session
+- **Avg Latency** - Average response time from your message to Claude's reply
+- **Tool Execution** - Estimated time spent executing each tool type
+- **Latency Breakdown** - Min/max/average response times to understand performance
+
+Useful for understanding:
+- How long your session has been running
+- Whether Claude is responding quickly or slowly
+- Which tools take the most time to execute
+- Overall session performance metrics
+
+---
+
 ## 📊 Tool Dependency Graph (Visual Workflow)
 
 ### What It Does
@@ -406,6 +451,7 @@ Shows the complete sequence of tools used **since watch started** as a visual AS
 
 - Displays all tool calls in chronological order (only from watch start)
 - Shows exact tool names and full bash commands
+- **Shows file names for Read and Edit operations**
 - **Highlights failed tool calls with [ERROR] tags**
 - **Shows related git commits from the session date**
 - Displays session start datetime, token count, and error count
@@ -426,15 +472,15 @@ Started: 2025-10-25 14:32:15 • Tokens: 2,567 • Errors: 1
 
 ┌─ Tool Flow
 │
-├─ Read
+├─ Read: package.json
 │  ↓
 ├─ Bash: git add . && git commit -m "update"
 │  ↓
-├─ Edit [ERROR]
+├─ Edit: claude-history-cli.js [ERROR]
 │  ↓
 ├─ Bash: npm version patch
 │  ↓
-└─ Write
+└─ Write: README.md
 
 Recent commits:
   a1b2c3d feat: add feature
@@ -442,7 +488,8 @@ Recent commits:
 ```
 
 Shows the complete sequence of tool calls **since watch started** in the order they were executed. Features:
-- For Bash commands, the full command is displayed (truncated to 60 chars if needed)
+- For **Bash commands**, the full command is displayed (truncated to 60 chars if needed)
+- For **Read/Edit operations**, file names are shown (e.g., `Read: package.json`)
 - **[ERROR]** tags highlight failed tool calls
 - Session start time and token count shown at the top
 - Error count displayed in header
