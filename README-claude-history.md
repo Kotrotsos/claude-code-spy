@@ -190,8 +190,9 @@ export OPENAI_API_KEY='sk-...'  # Optional: for analysis features
 ### What You See
 - **Splash screen** with app name and version
 - **Session stats** at startup showing: message count, tokens, tools used, message rate
-- **Real-time messages** - New Claude responses appear as they arrive
+- **Real-time messages** - Only Claude responses **since watch started** appear as they arrive (no historical messages)
 - **Clean display** - No periodic updates or status spam
+- **Analysis is session-aware** - When you press 's' or 'a', only messages from watch start are analyzed
 
 ### Keyboard Controls in Watch Mode
 

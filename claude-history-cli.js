@@ -919,7 +919,7 @@ async function watchCurrentSession() {
                         }
                     }
                 }
-                await runSecurityAnalysisInline(sessionFile);
+                await runSecurityAnalysisInline(sessionFile, lastMessageCount);
                 lastAnalysisTokenCount = totalTokens;
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
@@ -949,7 +949,7 @@ async function watchCurrentSession() {
                         }
                     }
                 }
-                await runArcherAnalysisInline(sessionFile);
+                await runArcherAnalysisInline(sessionFile, lastMessageCount);
                 lastAnalysisTokenCount = totalTokens;
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
@@ -1090,7 +1090,7 @@ function getToolStats(conversation) {
     return { totalTools, toolList, toolTypes: Array.from(toolTypes) };
 }
 
-async function runArcherAnalysisInline(sessionFile) {
+async function runArcherAnalysisInline(sessionFile, startIndex = 0) {
     // Check for OpenAI API key
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -1102,11 +1102,12 @@ async function runArcherAnalysisInline(sessionFile) {
         // Read conversation
         const conversation = await readConversation(sessionFile);
 
-        // Get last N user/assistant pairs
+        // Get last N user/assistant pairs (only from startIndex onwards)
         const interactions = [];
         let currentInteraction = null;
 
-        for (const entry of conversation) {
+        for (let i = startIndex; i < conversation.length; i++) {
+            const entry = conversation[i];
             if (entry.type === 'user') {
                 const content = entry.message?.content || '';
                 if (Array.isArray(content) && content.length > 0 && content[0].type === 'tool_result') {
@@ -1244,7 +1245,7 @@ Format with empty lines between sections. Be concise and pragmatic.`
     }
 }
 
-async function runSecurityAnalysisInline(sessionFile) {
+async function runSecurityAnalysisInline(sessionFile, startIndex = 0) {
     // Check for OpenAI API key
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -1256,11 +1257,12 @@ async function runSecurityAnalysisInline(sessionFile) {
         // Read conversation
         const conversation = await readConversation(sessionFile);
 
-        // Get last N user/assistant pairs
+        // Get last N user/assistant pairs (only from startIndex onwards)
         const interactions = [];
         let currentInteraction = null;
 
-        for (const entry of conversation) {
+        for (let i = startIndex; i < conversation.length; i++) {
+            const entry = conversation[i];
             if (entry.type === 'user') {
                 const content = entry.message?.content || '';
                 if (Array.isArray(content) && content.length > 0 && content[0].type === 'tool_result') {
