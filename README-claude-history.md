@@ -418,7 +418,7 @@ This helps you quickly copy/review commands or understand your workflow.
 ## 📁 File Changes Tracker (Monitor File Growth)
 
 ### What It Does
-Tracks all file edits with line count estimates and warns about large changes. Press **'f'** to toggle between two views:
+Tracks all file edits with line count estimates and warns about large changes. Press **'f'** to cycle through three views:
 
 #### View 1: Detailed File Tracker (First Press of 'f')
 Shows all modified files with edit count and LOC for the last edit:
@@ -440,7 +440,7 @@ Press 'f' again to see top 10 files by total LOC
 - **⚠ HIGH** = Warning if any edit exceeds 500 lines
 - Helps prevent accidentally introducing huge changes
 
-#### View 2: Top 10 Files Summary (Second Press of 'f')
+#### View 2: Top 10 Files by Total LOC (Second Press of 'f')
 Shows the top 10 files by total lines added, with edit counts and visual bars:
 
 ```
@@ -458,13 +458,39 @@ Top 10 Files by Total LOC
 3. package.json
    1x edits  •  25 LOC  █
 
-Press 'f' again to see detailed tracker
+Press 'f' again to see largest files by size
 ```
 
 - **Total LOC** = Sum of all lines added across all edits to that file
 - **Edit count** = Number of times the file was edited
 - **Visual bar** = Quick visual representation of file size (50 LOC per block)
 - Useful for seeing which files got the most changes overall
+
+#### View 3: Top 10 Largest Files by Size (Third Press of 'f')
+Shows the top 10 files by actual file size on disk:
+
+```
+Press 'f' again in the summary view
+
+Top 10 Largest Files
+3 files edited in total
+
+1. claude-history-cli.js
+   5x edits  •  1240 LOC  •  86.3 KB
+
+2. README-claude-history.md
+   3x edits  •  450 LOC  •  22.3 KB
+
+3. package.json
+   1x edits  •  25 LOC  •  920 B
+
+Press 'f' again to see detailed tracker
+```
+
+- **File Size** = Actual size of the file on disk (in B, KB, MB, GB)
+- **Edit count** = Number of times the file was edited
+- **Total LOC** = Sum of all lines added across all edits
+- Useful for understanding which files are actually the largest in the project
 
 ---
 

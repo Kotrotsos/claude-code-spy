@@ -983,6 +983,80 @@ function getFileChangesSummary(conversation, startIndex = 0) {
         output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  ${colors.gray}${bar}${colors.reset}\n\n`;
     });
 
+    output += `${colors.dim}Press 'f' again to see largest files by size${colors.reset}`;
+
+    return output;
+}
+
+function getFileChangesSizes(conversation, startIndex = 0) {
+    const fileStats = {};
+
+    // First pass: collect edit and LOC info
+    for (let i = startIndex; i < conversation.length; i++) {
+        const entry = conversation[i];
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use' && item.name === 'Edit') {
+                        if (item.input && item.input.file_path) {
+                            const filePath = item.input.file_path;
+                            if (!fileStats[filePath]) {
+                                fileStats[filePath] = { edits: 0, totalLoc: 0, size: 0 };
+                            }
+                            fileStats[filePath].edits++;
+
+                            // Accumulate total LOC from new_string length
+                            if (item.input.new_string) {
+                                const loc = (item.input.new_string.match(/\n/g) || []).length + 1;
+                                fileStats[filePath].totalLoc += loc;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    // Second pass: get actual file sizes from disk
+    Object.keys(fileStats).forEach(filePath => {
+        try {
+            const stats = require('fs').statSync(filePath);
+            fileStats[filePath].size = stats.size;
+        } catch (err) {
+            // File might not exist or be inaccessible, use 0
+            fileStats[filePath].size = 0;
+        }
+    });
+
+    if (Object.keys(fileStats).length === 0) {
+        return `${colors.yellow}No file changes since watch started${colors.reset}`;
+    }
+
+    // Format file size nicely
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    let output = `${colors.cyan}Top 10 Largest Files${colors.reset}\n`;
+    output += `${colors.dim}${Object.keys(fileStats).length} files edited in total${colors.reset}\n\n`;
+
+    // Sort by file size descending
+    const topFiles = Object.entries(fileStats)
+        .sort((a, b) => b[1].size - a[1].size)
+        .slice(0, 10);
+
+    topFiles.forEach(([filePath, data], idx) => {
+        const fileName = filePath.split('/').pop();
+        const sizeStr = formatFileSize(data.size);
+        output += `${colors.yellow}${idx + 1}.${colors.reset} ${colors.green}${fileName}${colors.reset}\n`;
+        output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
+    });
+
     output += `${colors.dim}Press 'f' again to see detailed tracker${colors.reset}`;
 
     return output;
@@ -1261,13 +1335,16 @@ async function watchCurrentSession() {
                 console.log(getBashCommandHistory(currentConversation, watchStartIndex));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
-            // Press 'f' to toggle between file changes tracker and top 10 summary
+            // Press 'f' to cycle through file views: tracker → summary → sizes → tracker
             if (key && key.name === 'f') {
                 const currentConversation = await readConversation(sessionFile);
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 if (fileViewMode === 'tracker') {
                     console.log(getFileChangesSummary(currentConversation, watchStartIndex));
                     fileViewMode = 'summary';
+                } else if (fileViewMode === 'summary') {
+                    console.log(getFileChangesSizes(currentConversation, watchStartIndex));
+                    fileViewMode = 'sizes';
                 } else {
                     console.log(getFileChangesTracker(currentConversation, watchStartIndex));
                     fileViewMode = 'tracker';
