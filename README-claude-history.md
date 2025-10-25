@@ -200,7 +200,10 @@ export OPENAI_API_KEY='sk-...'  # Optional: for analysis features
 |-----|--------|
 | **'a'** | Run Archer analysis on recent conversation |
 | **'s'** | Run Security analysis (manual security review) |
-| **'d'** | Show tool dependency graph |
+| **'d'** | Show tool dependency graph with git commits |
+| **'b'** | Show bash command history |
+| **'f'** | Show file changes tracker with LOC count |
+| **'h'** | Show keyboard shortcuts help |
 | **'q' or Ctrl+C** | Exit watch mode |
 
 ### Example Output
@@ -230,6 +233,12 @@ claude-code-spy v2.0.17 • 🕵️  Real-time monitoring
 # Combine options
 ./claude-history --watch --nano --archer-limit 15
 ```
+
+### Quick Help
+
+Press **'h'** anytime during watch mode to see a quick reference of all keyboard shortcuts!
+
+---
 
 ### Setup for Analysis Features
 ```bash
@@ -343,6 +352,50 @@ WARNING: Consider adding rate limiting for production
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+---
+
+## 💻 Bash Command History (View All Commands)
+
+### What It Does
+Shows every bash command executed during the session in order:
+
+```
+Press 'b' during watch mode
+
+Bash Command History
+5 commands executed
+
+1. git add .
+2. git commit -m "feat: add feature"
+3. npm version patch
+4. npm publish
+5. git push && git push --tags
+```
+
+This helps you quickly copy/review commands or understand your workflow.
+
+---
+
+## 📁 File Changes Tracker (Monitor File Growth)
+
+### What It Does
+Tracks all file edits with line count estimates and warns about large changes:
+
+```
+Press 'f' during watch mode
+
+File Changes Tracker
+3 files modified
+
+claude-history-cli.js (5 edits, ~120 LOC)
+README-claude-history.md (3 edits, ~45 LOC)
+package.json (1 edit, ~2 LOC) ⚠ HIGH
+```
+
+- **LOC** = Lines of Code in the last edit to that file
+- **⚠ HIGH** = Warning if any edit exceeds 500 lines
+- Helps prevent accidentally introducing huge changes
 
 ---
 

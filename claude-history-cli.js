@@ -831,6 +831,110 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null, star
     return graph;
 }
 
+function getBashCommandHistory(conversation, startIndex = 0) {
+    const commands = [];
+
+    for (let i = startIndex; i < conversation.length; i++) {
+        const entry = conversation[i];
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use' && item.name === 'Bash') {
+                        if (item.input && item.input.command) {
+                            commands.push(item.input.command.trim());
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    if (commands.length === 0) {
+        return `${colors.yellow}No bash commands run since watch started${colors.reset}`;
+    }
+
+    let output = `${colors.cyan}Bash Command History${colors.reset}\n`;
+    output += `${colors.dim}${commands.length} commands executed${colors.reset}\n\n`;
+
+    commands.forEach((cmd, idx) => {
+        output += `${colors.green}${idx + 1}.${colors.reset} ${colors.dim}${cmd}${colors.reset}\n`;
+    });
+
+    return output;
+}
+
+function getFileChangesTracker(conversation, startIndex = 0) {
+    const fileChanges = {};
+    const LOC_WARNING_THRESHOLD = 500;
+
+    for (let i = startIndex; i < conversation.length; i++) {
+        const entry = conversation[i];
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use' && item.name === 'Edit') {
+                        if (item.input && item.input.file_path) {
+                            const filePath = item.input.file_path;
+                            if (!fileChanges[filePath]) {
+                                fileChanges[filePath] = { edits: 0, lastEditSize: 0 };
+                            }
+                            fileChanges[filePath].edits++;
+
+                            // Estimate LOC from new_string length
+                            if (item.input.new_string) {
+                                fileChanges[filePath].lastEditSize = (item.input.new_string.match(/\n/g) || []).length + 1;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    if (Object.keys(fileChanges).length === 0) {
+        return `${colors.yellow}No file changes since watch started${colors.reset}`;
+    }
+
+    let output = `${colors.cyan}File Changes Tracker${colors.reset}\n`;
+    output += `${colors.dim}${Object.keys(fileChanges).length} files modified${colors.reset}\n\n`;
+
+    const sortedFiles = Object.entries(fileChanges)
+        .sort((a, b) => b[1].edits - a[1].edits);
+
+    sortedFiles.forEach(([filePath, data]) => {
+        const fileName = filePath.split('/').pop();
+        const warningFlag = data.lastEditSize > LOC_WARNING_THRESHOLD ? ` ${colors.red}⚠ HIGH${colors.reset}` : '';
+        output += `${colors.green}${fileName}${colors.reset} (${data.edits} edits, ~${data.lastEditSize} LOC)${warningFlag}\n`;
+    });
+
+    return output;
+}
+
+function getKeyboardShortcuts() {
+    const shortcuts = [
+        { key: 'a', action: 'Run Archer analysis', description: 'AI-powered conversation review' },
+        { key: 's', action: 'Run Security analysis', description: 'Manual security evaluation' },
+        { key: 'd', action: 'Show tool dependency graph', description: 'Tool sequence + git commits' },
+        { key: 'b', action: 'Bash command history', description: 'All commands run this session' },
+        { key: 'f', action: 'File changes tracker', description: 'Files edited with LOC count' },
+        { key: 'h', action: 'Help & shortcuts', description: 'This menu' },
+        { key: 'q', action: 'Exit watch mode', description: 'Press q or Ctrl+C' }
+    ];
+
+    let output = `${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    output += `${colors.cyan}Keyboard Shortcuts${colors.reset}\n`;
+    output += `${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n\n`;
+
+    shortcuts.forEach(({ key, action, description }) => {
+        output += `${colors.yellow}'${key}'${colors.reset}  →  ${colors.green}${action}${colors.reset}\n`;
+        output += `     ${colors.dim}${description}${colors.reset}\n\n`;
+    });
+
+    return output;
+}
+
 async function watchCurrentSession() {
     const currentPath = process.cwd();
     const encodedPath = encodeProjectPath(currentPath);
@@ -977,6 +1081,26 @@ async function watchCurrentSession() {
                 } catch (err) {
                     // Silent fail if not a git repo
                 }
+            }
+            // Press 'b' to show bash command history
+            if (key && key.name === 'b') {
+                const currentConversation = await readConversation(sessionFile);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(getBashCommandHistory(currentConversation, watchStartIndex));
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+            }
+            // Press 'f' to show file changes tracker
+            if (key && key.name === 'f') {
+                const currentConversation = await readConversation(sessionFile);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(getFileChangesTracker(currentConversation, watchStartIndex));
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+            }
+            // Press 'h' to show keyboard shortcuts
+            if (key && key.name === 'h') {
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(getKeyboardShortcuts());
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
         });
     }
