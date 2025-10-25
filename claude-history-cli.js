@@ -683,8 +683,7 @@ function showSplashScreen() {
     }
 
     const splash = `${colors.bright}${colors.cyan}   ◄███►  ${colors.reset}claude-code-spy v${version}
-${colors.bright}${colors.cyan}  ◄█████► ${colors.reset}🕵️  Real-time monitoring
-${colors.bright}${colors.cyan} ◄███████►${colors.reset}`;
+${colors.bright}${colors.cyan}  ◄█████► ${colors.reset}🕵️  Real-time monitoring`;
 
     console.log(splash);
 }
