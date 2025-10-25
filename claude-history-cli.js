@@ -1017,6 +1017,17 @@ function getFileChangesSizes(conversation, startIndex = 0) {
         }
     }
 
+    // Helper to count lines in a file
+    const countLoc = (filePath) => {
+        try {
+            const fs = require('fs');
+            const content = fs.readFileSync(filePath, 'utf8');
+            return content.split('\n').length;
+        } catch (err) {
+            return 0;
+        }
+    };
+
     // Helper to recursively scan directory
     const scanDirectory = (dir, ignore = ['.git', 'node_modules', '.next', 'dist', 'build']) => {
         const fs = require('fs');
@@ -1037,8 +1048,10 @@ function getFileChangesSizes(conversation, startIndex = 0) {
                     try {
                         const stats = fs.statSync(filePath);
                         if (stats.isFile()) {
+                            const loc = countLoc(filePath);
                             allFiles[filePath] = {
                                 size: stats.size,
+                                loc: loc,
                                 edits: editedFiles[filePath]?.edits || 0,
                                 totalLoc: editedFiles[filePath]?.totalLoc || 0
                             };
@@ -1087,12 +1100,14 @@ function getFileChangesSizes(conversation, startIndex = 0) {
         const sizeStr = formatFileSize(data.size);
         output += `${colors.yellow}${idx + 1}.${colors.reset} ${colors.green}${fileName}${colors.reset}\n`;
 
+        // Show file LOC and size
+        output += `   ${colors.cyan}${data.loc} LOC${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}`;
+
         // Show edit info if this file was edited
         if (data.edits > 0) {
-            output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
-        } else {
-            output += `   ${colors.dim}not edited${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
+            output += `  •  ${colors.dim}${data.edits}x edits (+${data.totalLoc} LOC)${colors.reset}`;
         }
+        output += `\n\n`;
     });
 
     output += `${colors.dim}Press 'f' again to see detailed tracker${colors.reset}`;
