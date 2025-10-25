@@ -853,16 +853,38 @@ async function watchCurrentSession() {
                         countdownInterval = setInterval(() => {
                             const currentIdleTime = Date.now() - lastMessageTime;
                             const currentIdleSeconds = Math.floor(currentIdleTime / 1000);
-                            const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
-                            const remainingTokens = Math.max(0, 1000 - newTokens);
-                            const statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${newTokens}/1000 | Press 'a' for summary now${colors.reset}`;
+                            let statusLine;
+
+                            // Recalculate tokens for this interval
+                            let checkTokens = 0;
+                            for (const entry of currentConversation) {
+                                if (entry.type === 'assistant') {
+                                    const content = entry.message?.content || [];
+                                    if (Array.isArray(content)) {
+                                        content.forEach(item => {
+                                            if (item.type === 'text') {
+                                                checkTokens += Math.ceil(item.text.length / 4);
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                            const checkNewTokens = checkTokens - lastAnalysisTokenCount;
+
+                            if (currentIdleSeconds >= 15 && checkNewTokens >= 1000) {
+                                statusLine = `${colors.green}✓ Ready to summarize! (Idle: ${currentIdleSeconds}s | Tokens: ${checkNewTokens}) | Press 'a' now or wait for auto-summary${colors.reset}`;
+                            } else {
+                                const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
+                                const remainingTokens = Math.max(0, 1000 - checkNewTokens);
+                                statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${checkNewTokens}/1000 (need ${remainingTokens} more) | Press 'a' for summary now${colors.reset}`;
+                            }
                             process.stdout.write(`\r${statusLine}`);
                         }, 1000);
                     }
                 } else if (countdownInterval && (idleTime <= 3000 || analysisPending || (newTokens >= 1000 && idleSeconds >= 15))) {
                     clearInterval(countdownInterval);
                     countdownInterval = null;
-                    process.stdout.write('\r' + ' '.repeat(100) + '\r'); // Clear the line
+                    process.stdout.write('\r' + ' '.repeat(120) + '\r'); // Clear the line
                 }
 
                 if (idleTime > 15000 && !analysisPending && lastMessageCount > 0 && newTokens >= 1000) {
@@ -1023,7 +1045,14 @@ Be concise but thorough. Highlight any concerning misalignments in red flags.`
         console.log(`\n${colors.dim}Model: ${model}${config.nanoMode ? ' (nano/fast)' : ''} | Tokens: ${data.usage.total_tokens}${colors.reset}`);
 
     } catch (error) {
-        console.error(`${colors.red}Error generating summary: ${error.message}${colors.reset}`);
+        console.error(`\n${colors.red}Error generating summary: ${error.message}${colors.reset}`);
+
+        if (error.message.includes('fetch')) {
+            console.log(`${colors.yellow}Network error - check:${colors.reset}`);
+            console.log(`  1. Internet connection`);
+            console.log(`  2. OpenAI API key: ${apiKey ? '✓ Set' : '✗ Not set'}`);
+            console.log(`  3. API rate limits: https://platform.openai.com/usage`);
+        }
     }
 }
 
