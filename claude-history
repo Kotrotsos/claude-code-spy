@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Claude Code History Viewer
+# A simple wrapper script for the claude-history-cli.js tool
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CLI_SCRIPT="$SCRIPT_DIR/claude-history-cli.js"
+
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    echo "Error: Node.js is not installed. Please install Node.js to use this tool."
+    exit 1
+fi
+
+# Check if the CLI script exists
+if [ ! -f "$CLI_SCRIPT" ]; then
+    echo "Error: claude-history-cli.js not found in $SCRIPT_DIR"
+    exit 1
+fi
+
+# Run the CLI with all passed arguments
+node "$CLI_SCRIPT" "$@"

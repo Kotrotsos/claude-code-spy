@@ -1,0 +1,39 @@
+{
+  "name": "claude-code-history",
+  "version": "2.0.0",
+  "description": "CLI tool to view Claude Code conversation history with AI-powered summaries and real-time monitoring",
+  "main": "claude-history-cli.js",
+  "bin": {
+    "claude-history": "./claude-history"
+  },
+  "preferGlobal": true,
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "history",
+    "cli",
+    "conversation",
+    "analyzer",
+    "real-time",
+    "monitoring"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/claude-code-history"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/claude-code-history/issues"
+  },
+  "homepage": "https://github.com/yourusername/claude-code-history#readme",
+  "files": [
+    "claude-history",
+    "claude-history-cli.js",
+    "README-claude-history.md",
+    "LICENSE"
+  ]
+}
