@@ -901,14 +901,6 @@ async function watchCurrentSession() {
                             }
                             const checkNewTokens = checkTokens - lastAnalysisTokenCount;
 
-                            // Show stats after 5 seconds of idle
-                            if (currentIdleSeconds === 5) {
-                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
-                                const stats = getToolStats(currentConversation);
-                                console.log(`\n${colors.dim}Stats: ${stats.totalTools} tool calls (${stats.toolList}) | ${checkNewTokens} tokens${colors.reset}`);
-                                return;
-                            }
-
                             // Stop showing timer after 15 seconds
                             if (currentIdleSeconds >= 15) {
                                 clearInterval(countdownInterval);
@@ -917,9 +909,16 @@ async function watchCurrentSession() {
                                 return;
                             }
 
-                            if (currentIdleSeconds >= 15 && checkNewTokens >= 1000) {
-                                statusLine = `${colors.green}✓ Ready to summarize! (Idle: ${currentIdleSeconds}s | Tokens: ${checkNewTokens}) | Press 'a' now or wait for auto-summary${colors.reset}`;
-                            } else if (currentIdleSeconds < 5) {
+                            // Show stats after 5 seconds of idle
+                            if (currentIdleSeconds === 5) {
+                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
+                                const stats = getToolStats(currentConversation);
+                                console.log(`\n${colors.dim}Stats: ${stats.totalTools} tool calls (${stats.toolList}) | ${checkNewTokens} tokens${colors.reset}`);
+                                return;
+                            }
+
+                            // Show countdown before 5 seconds
+                            if (currentIdleSeconds < 5) {
                                 const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
                                 const remainingTokens = Math.max(0, 1000 - checkNewTokens);
                                 statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${checkNewTokens}/1000 (need ${remainingTokens} more) | Press 'a' for summary, 's' for security check${colors.reset}`;
@@ -1220,8 +1219,9 @@ async function runSecurityAnalysisInline(sessionFile) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
 
+        let response;
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
