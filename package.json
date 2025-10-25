@@ -33,6 +33,7 @@
   "files": [
     "claude-history",
     "claude-history-cli.js",
+    "lib/",
     "README-claude-history.md",
     "LICENSE"
   ]
