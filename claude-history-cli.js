@@ -877,62 +877,7 @@ async function watchCurrentSession() {
                 const newTokens = totalTokens - lastAnalysisTokenCount;
                 const idleSeconds = Math.floor(idleTime / 1000);
 
-                // Show countdown/status if idle but conditions not met
-                if (idleTime > 3000 && !analysisPending && lastMessageCount > 0 && (newTokens < 1000 || idleSeconds < 15)) {
-                    if (!countdownInterval) {
-                        countdownInterval = setInterval(() => {
-                            const currentIdleTime = Date.now() - lastMessageTime;
-                            const currentIdleSeconds = Math.floor(currentIdleTime / 1000);
-                            let statusLine;
-
-                            // Recalculate tokens for this interval
-                            let checkTokens = 0;
-                            for (const entry of currentConversation) {
-                                if (entry.type === 'assistant') {
-                                    const content = entry.message?.content || [];
-                                    if (Array.isArray(content)) {
-                                        content.forEach(item => {
-                                            if (item.type === 'text') {
-                                                checkTokens += Math.ceil(item.text.length / 4);
-                                            }
-                                        });
-                                    }
-                                }
-                            }
-                            const checkNewTokens = checkTokens - lastAnalysisTokenCount;
-
-                            // Stop showing timer after 15 seconds
-                            if (currentIdleSeconds >= 15) {
-                                clearInterval(countdownInterval);
-                                countdownInterval = null;
-                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
-                                return;
-                            }
-
-                            // Show stats after 5 seconds of idle
-                            if (currentIdleSeconds === 5) {
-                                process.stdout.write('\r' + ' '.repeat(120) + '\r');
-                                const stats = getToolStats(currentConversation);
-                                console.log(`\n${colors.dim}Stats: ${stats.totalTools} tool calls (${stats.toolList}) | ${checkNewTokens} tokens${colors.reset}`);
-                                clearInterval(countdownInterval);
-                                countdownInterval = null;
-                                return;
-                            }
-
-                            // Show countdown before 5 seconds
-                            if (currentIdleSeconds < 5) {
-                                const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
-                                const remainingTokens = Math.max(0, 1000 - checkNewTokens);
-                                statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${checkNewTokens}/1000 (need ${remainingTokens} more) | Press 'a' for summary, 's' for security check${colors.reset}`;
-                                process.stdout.write(`\r${statusLine}`);
-                            }
-                        }, 1000);
-                    }
-                } else if (countdownInterval && (idleTime <= 3000 || analysisPending || (newTokens >= 1000 && idleSeconds >= 15))) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                    process.stdout.write('\r' + ' '.repeat(120) + '\r'); // Clear the line
-                }
+                // Silently wait - no status display during idle time
 
                 if (idleTime > 15000 && !analysisPending && lastMessageCount > 0 && newTokens >= 1000) {
                     // Claude has been idle for 15 seconds with 1000+ new tokens, run analysis
