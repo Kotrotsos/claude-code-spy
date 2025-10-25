@@ -1,6 +1,6 @@
 {
   "name": "claude-code-spy",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Spy on your Claude Code conversations - Real-time monitoring with AI-powered summaries and full tool visibility",
   "main": "claude-history-cli.js",
   "bin": {
