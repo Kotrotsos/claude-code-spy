@@ -747,7 +747,19 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
             if (Array.isArray(content)) {
                 content.forEach(item => {
                     if (item.type === 'tool_use') {
-                        toolSequence.push(item.name || 'unknown');
+                        let toolName = item.name || 'unknown';
+                        let toolDisplay = toolName;
+
+                        // For Bash tools, extract and show the command
+                        if (toolName === 'Bash' && item.input && item.input.command) {
+                            const cmd = item.input.command;
+                            // Extract first ~30 chars of command, or up to first space/newline
+                            const shortCmd = cmd.split(/[\s\n]/)[0];
+                            const displayCmd = shortCmd.length > 30 ? shortCmd.substring(0, 27) + '...' : shortCmd;
+                            toolDisplay = `${toolName}: ${displayCmd}`;
+                        }
+
+                        toolSequence.push(toolDisplay);
                     }
                     if (item.type === 'text') {
                         totalTokens += Math.ceil(item.text.length / 4);

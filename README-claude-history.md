@@ -376,12 +376,12 @@ Started: 2025-10-25 14:32:15 • Tokens: 2,567
 │  ↓
 ├─ Edit (7)
 │  ↓
-├─ Bash (5)
+├─ Bash: git (5)
 │  ↓
 └─ Write (2)
 ```
 
-Each tool shows how many times it's been called since watch mode started. The session start time and token count are displayed at the top to help you track resource usage.
+Each tool shows how many times it's been called since watch mode started. For Bash commands, the first command word is displayed. The session start time and token count are shown at the top to help you track resource usage.
 
 ---
 
