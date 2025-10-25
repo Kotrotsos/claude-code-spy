@@ -1,10 +1,11 @@
 {
-  "name": "claude-code-history",
+  "name": "claude-code-spy",
   "version": "2.0.0",
-  "description": "CLI tool to view Claude Code conversation history with AI-powered summaries and real-time monitoring",
+  "description": "Spy on your Claude Code conversations - Real-time monitoring with AI-powered summaries and full tool visibility",
   "main": "claude-history-cli.js",
   "bin": {
-    "claude-history": "./claude-history"
+    "claude-history": "./claude-history",
+    "claude-code-spy": "./claude-history"
   },
   "preferGlobal": true,
   "engines": {
@@ -20,16 +21,16 @@
     "real-time",
     "monitoring"
   ],
-  "author": "Your Name",
+  "author": "kotrotsos <kotrotsos@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/claude-code-history"
+    "url": "https://github.com/kotrotsos/claude-code-spy"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/claude-code-history/issues"
+    "url": "https://github.com/kotrotsos/claude-code-spy/issues"
   },
-  "homepage": "https://github.com/yourusername/claude-code-history#readme",
+  "homepage": "https://github.com/kotrotsos/claude-code-spy#readme",
   "files": [
     "claude-history",
     "claude-history-cli.js",

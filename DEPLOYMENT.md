@@ -11,7 +11,7 @@ git add .
 git commit -m "Initial commit: Claude Code History CLI"
 
 # Create repo on GitHub, then:
-git remote add origin https://github.com/yourusername/claude-code-history.git
+git remote add origin https://github.com/kotrotsos/claude-code-spy.git
 git branch -M main
 git push -u origin main
 ```
@@ -29,7 +29,7 @@ Edit `package.json` and update:
   "author": "Your Name <your.email@example.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/claude-code-history"
+    "url": "https://github.com/yourusername/claude-code-spy"
   }
 }
 ```
@@ -71,13 +71,13 @@ git push --tags
 
 ```bash
 # Check on npm
-npm view claude-code-history
+npm view claude-code-spy
 
 # Install globally
-npm install -g claude-code-history
+npm install -g claude-code-spy
 
 # Or use with npx (no install needed)
-npx claude-code-history --help
+npx claude-code-spy --help
 ```
 
 ---
@@ -86,22 +86,22 @@ npx claude-code-history --help
 
 ### Install Globally
 ```bash
-npm install -g claude-code-history
+npm install -g claude-code-spy
 claude-history --watch
 ```
 
 ### Use with npx (No Installation)
 ```bash
 # One-time use without installation
-npx claude-code-history --watch
+npx claude-code-spy --watch
 
 # Or with short alias
-npx claude-code-history --archer
+npx claude-code-spy --archer
 ```
 
 ### Install as Dev Dependency
 ```bash
-npm install --save-dev claude-code-history
+npm install --save-dev claude-code-spy
 npx claude-history --current
 ```
 
@@ -153,18 +153,18 @@ Add to your README:
 ```markdown
 # Claude Code History
 
-[![npm version](https://badge.fury.io/js/claude-code-history.svg)](https://badge.fury.io/js/claude-code-history)
-[![npm downloads](https://img.shields.io/npm/dm/claude-code-history.svg)](https://www.npmjs.com/package/claude-code-history)
+[![npm version](https://badge.fury.io/js/claude-code-spy.svg)](https://badge.fury.io/js/claude-code-spy)
+[![npm downloads](https://img.shields.io/npm/dm/claude-code-spy.svg)](https://www.npmjs.com/package/claude-code-spy)
 
 ## Quick Install
 
 ```bash
-npm install -g claude-code-history
+npm install -g claude-code-spy
 ```
 
 Or use with npx:
 ```bash
-npx claude-code-history --watch
+npx claude-code-spy --watch
 ```
 ```
 
@@ -189,7 +189,7 @@ npx claude-code-history --watch
 
 ### Package Not Found After Publishing
 - Wait a few minutes for NPM registry to update
-- Check: `npm view claude-code-history`
+- Check: `npm view claude-code-spy`
 
 ### bin Script Not Working
 - Verify shebang in `claude-history`: `#!/bin/bash`
@@ -210,14 +210,14 @@ npm version minor
 npm publish
 
 # 4. Verify
-npm view claude-code-history version
+npm view claude-code-spy version
 
 # 5. Push to github
 git push
 git push --tags
 
 # 6. Test with npx
-npx claude-code-history --help
+npx claude-code-spy --help
 ```
 
 ---
@@ -246,4 +246,4 @@ git push && git push --tags
 Always publish security fixes immediately with `npm version patch`
 
 ### Monitor Issues
-Check npm page at: https://www.npmjs.com/package/claude-code-history
+Check npm page at: https://www.npmjs.com/package/claude-code-spy
