@@ -4,7 +4,6 @@
   "description": "Spy on your Claude Code conversations - Real-time monitoring with AI-powered summaries and full tool visibility",
   "main": "claude-history-cli.js",
   "bin": {
-    "claude-history": "./claude-history",
     "claude-code-spy": "./claude-history"
   },
   "preferGlobal": true,
