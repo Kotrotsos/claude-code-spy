@@ -726,14 +726,45 @@ async function watchCurrentSession() {
             process.stdin.setRawMode(true);
         }
 
-        process.stdin.on('keypress', (str, key) => {
+        process.stdin.on('keypress', async (str, key) => {
             if (key && (key.name === 'q' || (key.ctrl && key.name === 'c'))) {
                 isExiting = true;
+                if (countdownInterval) clearInterval(countdownInterval);
                 console.log(`\n${colors.yellow}Exiting watch mode...${colors.reset}`);
                 if (process.stdin.setRawMode) {
                     process.stdin.setRawMode(false);
                 }
                 process.exit(0);
+            }
+            // Press 'a' to manually run Archer
+            if (key && key.name === 'a') {
+                if (analysisPending) {
+                    console.log(`\n${colors.yellow}Analysis already running...${colors.reset}`);
+                    return;
+                }
+                analysisPending = true;
+                if (countdownInterval) clearInterval(countdownInterval);
+                console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(`${colors.dim}Running Archer (manual trigger)...${colors.reset}\n`);
+                const currentConversation = await readConversation(sessionFile);
+                let totalTokens = 0;
+                for (const entry of currentConversation) {
+                    if (entry.type === 'assistant') {
+                        const content = entry.message?.content || [];
+                        if (Array.isArray(content)) {
+                            content.forEach(item => {
+                                if (item.type === 'text') {
+                                    totalTokens += Math.ceil(item.text.length / 4);
+                                }
+                            });
+                        }
+                    }
+                }
+                await runArcherAnalysisInline(sessionFile);
+                lastAnalysisTokenCount = totalTokens;
+                console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
+                analysisPending = false;
             }
         });
     }
@@ -759,12 +790,13 @@ async function watchCurrentSession() {
 
     console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
     console.log(`${colors.dim}Watching for new messages... (${lastMessageCount} messages so far)${colors.reset}`);
-    console.log(`${colors.dim}💡 Tip: If Claude is idle for 15 seconds with 1000+ new tokens, auto-generates summary${colors.reset}\n`);
+    console.log(`${colors.dim}💡 Tips: Press 'a' to manually run Archer, or wait 15s idle + 1000+ tokens${colors.reset}\n`);
 
     // Track idle time for auto-summary
     let lastMessageTime = Date.now();
     let analysisPending = false;
     let lastAnalysisTokenCount = 0;
+    let countdownInterval = null;
 
     // Poll for changes
     const pollInterval = setInterval(async () => {
@@ -813,16 +845,38 @@ async function watchCurrentSession() {
                 }
 
                 const newTokens = totalTokens - lastAnalysisTokenCount;
+                const idleSeconds = Math.floor(idleTime / 1000);
+
+                // Show countdown/status if idle but conditions not met
+                if (idleTime > 3000 && !analysisPending && lastMessageCount > 0 && (newTokens < 1000 || idleSeconds < 15)) {
+                    if (!countdownInterval) {
+                        countdownInterval = setInterval(() => {
+                            const currentIdleTime = Date.now() - lastMessageTime;
+                            const currentIdleSeconds = Math.floor(currentIdleTime / 1000);
+                            const remainingSeconds = Math.max(0, 15 - currentIdleSeconds);
+                            const remainingTokens = Math.max(0, 1000 - newTokens);
+                            const statusLine = `${colors.dim}Idle: ${currentIdleSeconds}s/15s | Tokens: ${newTokens}/1000 | Press 'a' for summary now${colors.reset}`;
+                            process.stdout.write(`\r${statusLine}`);
+                        }, 1000);
+                    }
+                } else if (countdownInterval && (idleTime <= 3000 || analysisPending || (newTokens >= 1000 && idleSeconds >= 15))) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    process.stdout.write('\r' + ' '.repeat(100) + '\r'); // Clear the line
+                }
 
                 if (idleTime > 15000 && !analysisPending && lastMessageCount > 0 && newTokens >= 1000) {
                     // Claude has been idle for 15 seconds with 1000+ new tokens, run analysis
                     analysisPending = true;
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    process.stdout.write('\r' + ' '.repeat(100) + '\r'); // Clear the line
                     console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                     console.log(`${colors.dim}Claude idle for 15 seconds (${newTokens} new tokens), generating summary...${colors.reset}\n`);
                     await runArcherAnalysisInline(sessionFile);
                     lastAnalysisTokenCount = totalTokens;
                     console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                     console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
+                    analysisPending = false;
                 }
             }
         } catch (e) {
