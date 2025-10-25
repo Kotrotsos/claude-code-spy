@@ -925,6 +925,66 @@ function getFileChangesTracker(conversation, startIndex = 0) {
         output += `${colors.green}${fileName}${colors.reset} (${data.edits} edits, ~${data.lastEditSize} LOC)${warningFlag}\n`;
     });
 
+    output += `\n${colors.dim}Press 'f' again to see top 10 files by total LOC${colors.reset}`;
+
+    return output;
+}
+
+function getFileChangesSummary(conversation, startIndex = 0) {
+    const fileStats = {};
+
+    for (let i = startIndex; i < conversation.length; i++) {
+        const entry = conversation[i];
+        if (entry.type === 'assistant') {
+            const content = entry.message?.content || [];
+            if (Array.isArray(content)) {
+                content.forEach(item => {
+                    if (item.type === 'tool_use' && item.name === 'Edit') {
+                        if (item.input && item.input.file_path) {
+                            const filePath = item.input.file_path;
+                            if (!fileStats[filePath]) {
+                                fileStats[filePath] = { edits: 0, totalLoc: 0 };
+                            }
+                            fileStats[filePath].edits++;
+
+                            // Accumulate total LOC from new_string length
+                            if (item.input.new_string) {
+                                const loc = (item.input.new_string.match(/\n/g) || []).length + 1;
+                                fileStats[filePath].totalLoc += loc;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    if (Object.keys(fileStats).length === 0) {
+        return `${colors.yellow}No file changes since watch started${colors.reset}`;
+    }
+
+    let output = `${colors.cyan}Top 10 Files by Total LOC${colors.reset}\n`;
+    output += `${colors.dim}${Object.keys(fileStats).length} files edited in total${colors.reset}\n\n`;
+
+    // Sort by total LOC descending, then by edits
+    const topFiles = Object.entries(fileStats)
+        .sort((a, b) => {
+            if (b[1].totalLoc !== a[1].totalLoc) {
+                return b[1].totalLoc - a[1].totalLoc;
+            }
+            return b[1].edits - a[1].edits;
+        })
+        .slice(0, 10);
+
+    topFiles.forEach(([filePath, data], idx) => {
+        const fileName = filePath.split('/').pop();
+        const bar = '█'.repeat(Math.min(Math.floor(data.totalLoc / 50), 20));
+        output += `${colors.yellow}${idx + 1}.${colors.reset} ${colors.green}${fileName}${colors.reset}\n`;
+        output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  ${colors.gray}${bar}${colors.reset}\n\n`;
+    });
+
+    output += `${colors.dim}Press 'f' again to see detailed tracker${colors.reset}`;
+
     return output;
 }
 
@@ -1201,11 +1261,17 @@ async function watchCurrentSession() {
                 console.log(getBashCommandHistory(currentConversation, watchStartIndex));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
-            // Press 'f' to show file changes tracker
+            // Press 'f' to toggle between file changes tracker and top 10 summary
             if (key && key.name === 'f') {
                 const currentConversation = await readConversation(sessionFile);
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                console.log(getFileChangesTracker(currentConversation, watchStartIndex));
+                if (fileViewMode === 'tracker') {
+                    console.log(getFileChangesSummary(currentConversation, watchStartIndex));
+                    fileViewMode = 'summary';
+                } else {
+                    console.log(getFileChangesTracker(currentConversation, watchStartIndex));
+                    fileViewMode = 'tracker';
+                }
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
             // Press 'h' to show keyboard shortcuts
@@ -1281,6 +1347,7 @@ async function watchCurrentSession() {
     let analysisPending = false;
     let lastAnalysisTokenCount = 0;
     let countdownInterval = null;
+    let fileViewMode = 'tracker'; // 'tracker' or 'summary' - toggle with 'f' key
 
     // Poll for changes
     const pollInterval = setInterval(async () => {
