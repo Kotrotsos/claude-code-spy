@@ -743,23 +743,27 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
     // Extract tool usage sequence and count tokens from conversation
     for (const entry of conversation) {
         if (entry.type === 'assistant') {
+            const timestamp = entry.timestamp || null;
             const content = entry.message?.content || [];
             if (Array.isArray(content)) {
                 content.forEach(item => {
                     if (item.type === 'tool_use') {
                         let toolName = item.name || 'unknown';
                         let toolDisplay = toolName;
+                        let fullCommand = null;
 
-                        // For Bash tools, extract and show the command
+                        // For Bash tools, extract and show the full command
                         if (toolName === 'Bash' && item.input && item.input.command) {
-                            const cmd = item.input.command;
-                            // Extract first ~30 chars of command, or up to first space/newline
-                            const shortCmd = cmd.split(/[\s\n]/)[0];
-                            const displayCmd = shortCmd.length > 30 ? shortCmd.substring(0, 27) + '...' : shortCmd;
+                            fullCommand = item.input.command.trim();
+                            // Truncate to ~60 chars if too long
+                            const displayCmd = fullCommand.length > 60 ? fullCommand.substring(0, 57) + '...' : fullCommand;
                             toolDisplay = `${toolName}: ${displayCmd}`;
                         }
 
-                        toolSequence.push(toolDisplay);
+                        toolSequence.push({
+                            display: toolDisplay,
+                            timestamp: timestamp
+                        });
                     }
                     if (item.type === 'text') {
                         totalTokens += Math.ceil(item.text.length / 4);
@@ -773,7 +777,6 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
     let graph = '';
 
     if (sessionStartTime) {
-        const now = new Date();
         const startTime = sessionStartTime.toLocaleString('en-US', {
             year: 'numeric',
             month: '2-digit',
@@ -797,12 +800,25 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
     graph += `${colors.dim}│${colors.reset}\n`;
 
     for (let i = 0; i < toolSequence.length; i++) {
-        const tool = toolSequence[i];
+        const toolEntry = toolSequence[i];
         const isLast = i === toolSequence.length - 1;
         const connector = isLast ? '└─' : '├─';
         const nextConnector = isLast ? '  ' : '│ ';
 
-        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset}\n`;
+        let display = toolEntry.display;
+
+        // Add timestamp if available
+        if (toolEntry.timestamp) {
+            const time = new Date(toolEntry.timestamp).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            display += ` ${colors.dim}(${time})${colors.reset}`;
+        }
+
+        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${display}${colors.reset}\n`;
 
         // Show arrow if not last
         if (!isLast) {

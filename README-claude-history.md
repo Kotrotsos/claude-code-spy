@@ -350,8 +350,9 @@ WARNING: Consider adding rate limiting for production
 ### What It Does
 Shows the complete sequence of tools used in your session as a visual ASCII tree:
 
-- Displays all tool calls in chronological order
-- Shows exact tool names and bash commands
+- Displays all tool calls in chronological order with timestamps
+- Shows exact tool names and full bash commands
+- Timestamps show when each tool was called (HH:MM:SS format)
 - Fresh start each time you run the spy
 - Displays session start datetime and total tokens burned
 
@@ -370,22 +371,22 @@ Started: 2025-10-25 14:32:15 • Tokens: 2,567
 
 ┌─ Tool Flow
 │
-├─ Read
+├─ Read (14:32:16)
 │  ↓
-├─ Bash: git
+├─ Bash: git add . && git commit -m "update" (14:32:17)
 │  ↓
-├─ Read
+├─ Read (14:32:18)
 │  ↓
-├─ Grep
+├─ Grep (14:32:19)
 │  ↓
-├─ Edit
+├─ Edit (14:32:20)
 │  ↓
-├─ Bash: npm
+├─ Bash: npm version patch (14:32:22)
 │  ↓
-└─ Write
+└─ Write (14:32:23)
 ```
 
-Shows the complete sequence of tool calls in the order they were executed. For Bash commands, the first command word is displayed (e.g., "Bash: git", "Bash: npm"). The session start time and token count are shown at the top.
+Shows the complete sequence of tool calls in the order they were executed with precise timestamps. For Bash commands, the full command is displayed (truncated to 60 chars if needed). The session start time and token count are shown at the top.
 
 ---
 
