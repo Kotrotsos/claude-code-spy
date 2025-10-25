@@ -1,11 +1,21 @@
 #!/bin/bash
 
-# Claude Code History Viewer
+# Claude Code Spy - Real-time Claude Code monitoring with AI summaries
 # A simple wrapper script for the claude-history-cli.js tool
 
-# Get the directory where this script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Get the directory where this script is actually located (follow symlinks)
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 CLI_SCRIPT="$SCRIPT_DIR/claude-history-cli.js"
+
+# Try alternative locations if not found
+if [ ! -f "$CLI_SCRIPT" ]; then
+    # Check if we're in node_modules/.bin
+    if [ -f "$SCRIPT_DIR/../claude-code-spy/claude-history-cli.js" ]; then
+        CLI_SCRIPT="$SCRIPT_DIR/../claude-code-spy/claude-history-cli.js"
+    elif [ -f "$SCRIPT_DIR/../../../claude-code-spy/claude-history-cli.js" ]; then
+        CLI_SCRIPT="$SCRIPT_DIR/../../../claude-code-spy/claude-history-cli.js"
+    fi
+fi
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -15,7 +25,8 @@ fi
 
 # Check if the CLI script exists
 if [ ! -f "$CLI_SCRIPT" ]; then
-    echo "Error: claude-history-cli.js not found in $SCRIPT_DIR"
+    echo "Error: claude-history-cli.js not found"
+    echo "Tried: $SCRIPT_DIR/claude-history-cli.js"
     exit 1
 fi
 
