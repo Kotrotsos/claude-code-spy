@@ -682,8 +682,7 @@ function showSplashScreen() {
         // Fallback if package.json not found
     }
 
-    const splash = `${colors.bright}${colors.cyan}   ◄███►  ${colors.reset}claude-code-spy v${version}
-${colors.bright}${colors.cyan}  ◄█████► ${colors.reset}🕵️  Real-time monitoring`;
+    const splash = `${colors.bright}${colors.cyan}claude-code-spy${colors.reset} v${version} ${colors.dim}• 🕵️  Real-time monitoring${colors.reset}`;
 
     console.log(splash);
 }
