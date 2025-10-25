@@ -466,31 +466,36 @@ Press 'f' again to see largest files by size
 - **Visual bar** = Quick visual representation of file size (50 LOC per block)
 - Useful for seeing which files got the most changes overall
 
-#### View 3: Top 10 Largest Files by Size (Third Press of 'f')
-Shows the top 10 files by actual file size on disk:
+#### View 3: Top 10 Largest Files in Project (Third Press of 'f')
+Shows the top 10 largest files in the entire project folder (all files, not just edited ones):
 
 ```
 Press 'f' again in the summary view
 
-Top 10 Largest Files
-3 files edited in total
+Top 10 Largest Files in Project
+247 total files
 
 1. claude-history-cli.js
-   5x edits  •  1240 LOC  •  86.3 KB
+   5x edits  •  1240 LOC  •  89.6 KB
 
 2. README-claude-history.md
-   3x edits  •  450 LOC  •  22.3 KB
+   3x edits  •  450 LOC  •  23.0 KB
 
-3. package.json
+3. dist/bundle.js
+   not edited  •  156.8 KB
+
+4. package.json
    1x edits  •  25 LOC  •  920 B
 
 Press 'f' again to see detailed tracker
 ```
 
+- **Scans entire project directory** (ignores: .git, node_modules, .next, dist, build)
 - **File Size** = Actual size of the file on disk (in B, KB, MB, GB)
-- **Edit count** = Number of times the file was edited
-- **Total LOC** = Sum of all lines added across all edits
-- Useful for understanding which files are actually the largest in the project
+- Shows which files you edited (edit count and total LOC added)
+- Shows "not edited" for large files you haven't touched
+- Useful for understanding disk usage and identifying bloat
+- Helps spot large files that might need optimization
 
 ---
 

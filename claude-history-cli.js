@@ -989,9 +989,8 @@ function getFileChangesSummary(conversation, startIndex = 0) {
 }
 
 function getFileChangesSizes(conversation, startIndex = 0) {
-    const fileStats = {};
-
-    // First pass: collect edit and LOC info
+    // First pass: collect edit and LOC info for edited files
+    const editedFiles = {};
     for (let i = startIndex; i < conversation.length; i++) {
         const entry = conversation[i];
         if (entry.type === 'assistant') {
@@ -1001,15 +1000,15 @@ function getFileChangesSizes(conversation, startIndex = 0) {
                     if (item.type === 'tool_use' && item.name === 'Edit') {
                         if (item.input && item.input.file_path) {
                             const filePath = item.input.file_path;
-                            if (!fileStats[filePath]) {
-                                fileStats[filePath] = { edits: 0, totalLoc: 0, size: 0 };
+                            if (!editedFiles[filePath]) {
+                                editedFiles[filePath] = { edits: 0, totalLoc: 0 };
                             }
-                            fileStats[filePath].edits++;
+                            editedFiles[filePath].edits++;
 
                             // Accumulate total LOC from new_string length
                             if (item.input.new_string) {
                                 const loc = (item.input.new_string.match(/\n/g) || []).length + 1;
-                                fileStats[filePath].totalLoc += loc;
+                                editedFiles[filePath].totalLoc += loc;
                             }
                         }
                     }
@@ -1018,19 +1017,52 @@ function getFileChangesSizes(conversation, startIndex = 0) {
         }
     }
 
-    // Second pass: get actual file sizes from disk
-    Object.keys(fileStats).forEach(filePath => {
-        try {
-            const stats = require('fs').statSync(filePath);
-            fileStats[filePath].size = stats.size;
-        } catch (err) {
-            // File might not exist or be inaccessible, use 0
-            fileStats[filePath].size = 0;
-        }
-    });
+    // Helper to recursively scan directory
+    const scanDirectory = (dir, ignore = ['.git', 'node_modules', '.next', 'dist', 'build']) => {
+        const fs = require('fs');
+        const allFiles = {};
 
-    if (Object.keys(fileStats).length === 0) {
-        return `${colors.yellow}No file changes since watch started${colors.reset}`;
+        const walkDir = (currentPath) => {
+            try {
+                const files = fs.readdirSync(currentPath);
+                files.forEach(file => {
+                    const filePath = path.join(currentPath, file);
+                    const relativePath = path.relative(process.cwd(), filePath);
+
+                    // Skip ignored directories
+                    if (ignore.some(pattern => relativePath.includes(pattern))) {
+                        return;
+                    }
+
+                    try {
+                        const stats = fs.statSync(filePath);
+                        if (stats.isFile()) {
+                            allFiles[filePath] = {
+                                size: stats.size,
+                                edits: editedFiles[filePath]?.edits || 0,
+                                totalLoc: editedFiles[filePath]?.totalLoc || 0
+                            };
+                        } else if (stats.isDirectory()) {
+                            walkDir(filePath);
+                        }
+                    } catch (err) {
+                        // Skip files that can't be accessed
+                    }
+                });
+            } catch (err) {
+                // Skip directories that can't be read
+            }
+        };
+
+        walkDir(dir);
+        return allFiles;
+    };
+
+    // Get all files in current directory
+    const allFiles = scanDirectory(process.cwd());
+
+    if (Object.keys(allFiles).length === 0) {
+        return `${colors.yellow}No files found in project${colors.reset}`;
     }
 
     // Format file size nicely
@@ -1042,11 +1074,11 @@ function getFileChangesSizes(conversation, startIndex = 0) {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
-    let output = `${colors.cyan}Top 10 Largest Files${colors.reset}\n`;
-    output += `${colors.dim}${Object.keys(fileStats).length} files edited in total${colors.reset}\n\n`;
+    let output = `${colors.cyan}Top 10 Largest Files in Project${colors.reset}\n`;
+    output += `${colors.dim}${Object.keys(allFiles).length} total files${colors.reset}\n\n`;
 
     // Sort by file size descending
-    const topFiles = Object.entries(fileStats)
+    const topFiles = Object.entries(allFiles)
         .sort((a, b) => b[1].size - a[1].size)
         .slice(0, 10);
 
@@ -1054,7 +1086,13 @@ function getFileChangesSizes(conversation, startIndex = 0) {
         const fileName = filePath.split('/').pop();
         const sizeStr = formatFileSize(data.size);
         output += `${colors.yellow}${idx + 1}.${colors.reset} ${colors.green}${fileName}${colors.reset}\n`;
-        output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
+
+        // Show edit info if this file was edited
+        if (data.edits > 0) {
+            output += `   ${colors.dim}${data.edits}x${colors.reset} edits  •  ${colors.cyan}${data.totalLoc} LOC${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
+        } else {
+            output += `   ${colors.dim}not edited${colors.reset}  •  ${colors.magenta}${sizeStr}${colors.reset}\n\n`;
+        }
     });
 
     output += `${colors.dim}Press 'f' again to see detailed tracker${colors.reset}`;
