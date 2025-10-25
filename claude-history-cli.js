@@ -143,7 +143,7 @@ ${colors.cyan}OPTIONS:${colors.reset}
     ${colors.yellow}--log-file PATH${colors.reset}    Log watch mode output to a markdown file (use with --watch)
     ${colors.yellow}--archer${colors.reset}           Analyze recent conversations with LLM (requires OPENAI_API_KEY)
     ${colors.yellow}--archer-limit N${colors.reset}   Number of recent commands to analyze (default: 10)
-    ${colors.yellow}--nano${colors.reset}             Use faster gpt-3.5-turbo model instead of gpt-4o-mini (faster & cheaper)
+    ${colors.yellow}--nano${colors.reset}             Use gpt-4.1-nano model instead of gpt-4o-mini (faster & cheaper)
     ${colors.yellow}--stats${colors.reset}            Show statistics about your Claude usage
 
 ${colors.cyan}EXAMPLES:${colors.reset}
@@ -1727,7 +1727,7 @@ async function runArcherAnalysisInline(sessionFile, startIndex = 0) {
         }).join('\n---\n');
 
         // Select model based on nano flag
-        const model = config.nanoMode ? 'gpt-4-turbo' : 'gpt-4o-mini';
+        const model = config.nanoMode ? 'gpt-4.1-nano' : 'gpt-4o-mini';
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -1886,7 +1886,7 @@ async function runSecurityAnalysisInline(sessionFile, startIndex = 0) {
         }).join('\n---\n');
 
         // Select model based on nano flag
-        const model = config.nanoMode ? 'gpt-4-turbo' : 'gpt-4o-mini';
+        const model = config.nanoMode ? 'gpt-4.1-nano' : 'gpt-4o-mini';
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 30000);
