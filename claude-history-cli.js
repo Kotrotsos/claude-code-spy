@@ -736,26 +736,40 @@ ${toolEntries.length > 0 ? `${colors.dim}│${colors.reset} Tools:\n${toolLines}
     return stats;
 }
 
-function generateToolDependencyGraph(conversation, sessionStartTime = null) {
+function generateToolDependencyGraph(conversation, sessionStartTime = null, startIndex = 0) {
     const toolSequence = [];
     let totalTokens = 0;
+    let totalErrors = 0;
 
-    // Extract tool usage sequence and count tokens from conversation
-    for (const entry of conversation) {
+    // Extract tool usage sequence from messages after startIndex
+    for (let msgIdx = startIndex; msgIdx < conversation.length; msgIdx++) {
+        const entry = conversation[msgIdx];
         if (entry.type === 'assistant') {
             const content = entry.message?.content || [];
             if (Array.isArray(content)) {
-                content.forEach(item => {
+                content.forEach((item, itemIdx) => {
                     if (item.type === 'tool_use') {
                         let toolName = item.name || 'unknown';
                         let toolDisplay = toolName;
+                        let hasError = false;
+
+                        // Check if tool had an error result
+                        if (content[itemIdx + 1] && content[itemIdx + 1].type === 'tool_result') {
+                            const result = content[itemIdx + 1];
+                            if (result.is_error || (result.content && result.content.includes('error'))) {
+                                hasError = true;
+                                totalErrors++;
+                            }
+                        }
 
                         // For Bash tools, extract and show the full command
                         if (toolName === 'Bash' && item.input && item.input.command) {
                             const fullCommand = item.input.command.trim();
                             // Truncate to ~60 chars if too long
                             const displayCmd = fullCommand.length > 60 ? fullCommand.substring(0, 57) + '...' : fullCommand;
-                            toolDisplay = `${toolName}: ${displayCmd}`;
+                            toolDisplay = hasError ? `${toolName}: ${displayCmd} ${colors.red}[ERROR]${colors.reset}` : `${toolName}: ${displayCmd}`;
+                        } else if (hasError) {
+                            toolDisplay = `${toolName} ${colors.red}[ERROR]${colors.reset}`;
                         }
 
                         toolSequence.push(toolDisplay);
@@ -782,11 +796,15 @@ function generateToolDependencyGraph(conversation, sessionStartTime = null) {
             hour12: false
         }).replace(/\//g, '-');
 
-        graph += `${colors.dim}Started: ${colors.cyan}${startTime}${colors.reset}${colors.dim} • Tokens: ${colors.yellow}${totalTokens.toLocaleString()}${colors.reset}\n\n`;
+        graph += `${colors.dim}Started: ${colors.cyan}${startTime}${colors.reset}${colors.dim} • Tokens: ${colors.yellow}${totalTokens.toLocaleString()}${colors.reset}`;
+        if (totalErrors > 0) {
+            graph += `${colors.dim} • Errors: ${colors.red}${totalErrors}${colors.reset}`;
+        }
+        graph += '\n\n';
     }
 
     if (toolSequence.length === 0) {
-        graph += `${colors.yellow}No tools used in this session${colors.reset}`;
+        graph += `${colors.yellow}No tools used since watch started${colors.reset}`;
         return graph;
     }
 
@@ -941,8 +959,24 @@ async function watchCurrentSession() {
             if (key && key.name === 'd') {
                 const currentConversation = await readConversation(sessionFile);
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                console.log(generateToolDependencyGraph(currentConversation, sessionStartTime));
+                console.log(generateToolDependencyGraph(currentConversation, sessionStartTime, lastMessageCount));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+
+                // Show recent git commits from session start date
+                try {
+                    const sessionDate = sessionStartTime.toISOString().split('T')[0];
+                    const { execFileSync } = require('child_process');
+                    const gitOutput = execFileSync('git', ['log', '--oneline', `--since=${sessionDate}`, '--until=tomorrow'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+                    if (gitOutput.trim()) {
+                        console.log(`${colors.yellow}Recent commits:${colors.reset}`);
+                        gitOutput.split('\n').filter(l => l.trim()).slice(0, 5).forEach(l => {
+                            console.log(`  ${colors.dim}${l}${colors.reset}`);
+                        });
+                        console.log('');
+                    }
+                } catch (err) {
+                    // Silent fail if not a git repo
+                }
             }
         });
     }

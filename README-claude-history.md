@@ -348,12 +348,14 @@ WARNING: Consider adding rate limiting for production
 ## 📊 Tool Dependency Graph (Visual Workflow)
 
 ### What It Does
-Shows the complete sequence of tools used in your session as a visual ASCII tree:
+Shows the complete sequence of tools used **since watch started** as a visual ASCII tree:
 
-- Displays all tool calls in chronological order
+- Displays all tool calls in chronological order (only from watch start)
 - Shows exact tool names and full bash commands
+- **Highlights failed tool calls with [ERROR] tags**
+- **Shows related git commits from the session date**
+- Displays session start datetime, token count, and error count
 - Fresh start each time you run the spy
-- Displays session start datetime and total tokens burned
 
 ### Basic Usage
 Press **'d'** during watch mode to view the dependency graph:
@@ -366,7 +368,7 @@ cd /path/to/your/project
 
 ### Example Output
 ```
-Started: 2025-10-25 14:32:15 • Tokens: 2,567
+Started: 2025-10-25 14:32:15 • Tokens: 2,567 • Errors: 1
 
 ┌─ Tool Flow
 │
@@ -374,18 +376,23 @@ Started: 2025-10-25 14:32:15 • Tokens: 2,567
 │  ↓
 ├─ Bash: git add . && git commit -m "update"
 │  ↓
-├─ Read
-│  ↓
-├─ Grep
-│  ↓
-├─ Edit
+├─ Edit [ERROR]
 │  ↓
 ├─ Bash: npm version patch
 │  ↓
 └─ Write
+
+Recent commits:
+  a1b2c3d feat: add feature
+  d4e5f6g fix: bug fix
 ```
 
-Shows the complete sequence of tool calls in the order they were executed. For Bash commands, the full command is displayed (truncated to 60 chars if needed). The session start time and token count are shown at the top.
+Shows the complete sequence of tool calls **since watch started** in the order they were executed. Features:
+- For Bash commands, the full command is displayed (truncated to 60 chars if needed)
+- **[ERROR]** tags highlight failed tool calls
+- Session start time and token count shown at the top
+- Error count displayed in header
+- Recent git commits from the session date shown below the graph
 
 ---
 
