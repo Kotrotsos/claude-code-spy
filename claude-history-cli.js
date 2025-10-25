@@ -695,8 +695,6 @@ async function watchCurrentSession() {
     // Show fun splash screen
     showSplashScreen();
 
-    console.log(`${colors.bright}${colors.cyan}Watch Mode - Current Directory:${colors.reset} ${currentPath}`);
-
     if (!fs.existsSync(projectDir)) {
         console.error(`${colors.red}No Claude project found for path: ${currentPath}${colors.reset}`);
         return;
@@ -730,9 +728,6 @@ async function watchCurrentSession() {
 
     const sessionFile = fileStats[0].filePath;
     const sessionId = path.basename(fileStats[0].file, '.jsonl');
-
-    console.log(`${colors.bright}Watching session:${colors.reset} ${colors.yellow}${sessionId}${colors.reset}`);
-    console.log(`${colors.dim}Press 'q' or Ctrl+C to exit${colors.reset}\n`);
 
     let lastMessageCount = 0;
     let isExiting = false;
@@ -830,16 +825,9 @@ async function watchCurrentSession() {
         }
     });
 
-    // Initial read
+    // Get initial message count but don't display history
     const initialConversation = await readConversation(sessionFile);
-    for (const entry of initialConversation) {
-        displayMessage(entry, false);
-    }
     lastMessageCount = initialConversation.length;
-
-    console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-    console.log(`${colors.dim}Watching for new messages... (${lastMessageCount} messages so far)${colors.reset}`);
-    console.log(`${colors.dim}💡 Tips: Press 'a' to manually run Archer, or wait 15s idle + 1000+ tokens${colors.reset}\n`);
 
     // Track idle time for auto-summary
     let lastMessageTime = Date.now();
@@ -896,21 +884,7 @@ async function watchCurrentSession() {
                 const newTokens = totalTokens - lastAnalysisTokenCount;
                 const idleSeconds = Math.floor(idleTime / 1000);
 
-                // Silently wait - no status display during idle time
-
-                if (idleTime > 15000 && !analysisPending && lastMessageCount > 0 && newTokens >= 1000) {
-                    // Claude has been idle for 15 seconds with 1000+ new tokens, run analysis
-                    analysisPending = true;
-                    if (countdownInterval) clearInterval(countdownInterval);
-                    process.stdout.write('\r' + ' '.repeat(100) + '\r'); // Clear the line
-                    console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                    console.log(`${colors.dim}Claude idle for 15 seconds (${newTokens} new tokens), generating summary...${colors.reset}\n`);
-                    await runArcherAnalysisInline(sessionFile);
-                    lastAnalysisTokenCount = totalTokens;
-                    console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                    console.log(`${colors.dim}Resuming watch... (${lastMessageCount} messages so far)${colors.reset}\n`);
-                    analysisPending = false;
-                }
+                // Silently wait - no status display during idle time, no auto-triggers
             }
         } catch (e) {
             // File might be in the middle of being written, ignore
