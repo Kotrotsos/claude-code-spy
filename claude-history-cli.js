@@ -946,28 +946,6 @@ async function watchCurrentSession() {
             // File might be in the middle of being written, ignore
         }
     }, 500); // Poll every 500ms
-
-    // Update stats display every 5 seconds
-    let lastStatsDisplay = Date.now();
-    const statsInterval = setInterval(async () => {
-        if (isExiting) {
-            clearInterval(statsInterval);
-            return;
-        }
-
-        try {
-            const now = Date.now();
-            // Only update every 5 seconds
-            if (now - lastStatsDisplay >= 5000) {
-                const currentConversation = await readConversation(sessionFile);
-                const elapsedSeconds = Math.floor((now - watchStartTime) / 1000);
-                console.log(`\n${generateStatsDisplay(currentConversation, elapsedSeconds)}`);
-                lastStatsDisplay = now;
-            }
-        } catch (e) {
-            // Ignore read errors
-        }
-    }, 1000); // Check every second
 }
 
 function getToolStats(conversation) {
