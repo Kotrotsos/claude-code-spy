@@ -113,7 +113,7 @@ for (let i = 0; i < args.length; i++) {
 
 function showHelp() {
     console.log(`
-${colors.bright}Claude Code History Viewer${colors.reset}
+${colors.bright}Claude Code Spy${colors.reset}
 
 ${colors.cyan}USAGE:${colors.reset}
     ${colors.green}node claude-history-cli.js [OPTIONS]${colors.reset}

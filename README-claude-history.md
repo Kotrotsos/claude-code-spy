@@ -1,6 +1,6 @@
-# Claude Code History Viewer
+# Claude Code Spy
 
-A CLI tool to view your Claude Code conversation history in a readable format, showing **both your inputs AND Claude's responses**. Monitor sessions in real-time with automatic AI-powered summaries.
+A CLI tool to spy on your Claude Code conversations in real-time. View history in readable format showing **both your inputs AND Claude's responses**. Monitor sessions with automatic AI-powered summaries and full tool visibility.
 
 ## Features
 
