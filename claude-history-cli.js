@@ -130,7 +130,7 @@ ${colors.cyan}OPTIONS:${colors.reset}
     ${colors.yellow}--output-only${colors.reset}      Show only Claude's responses (no user input)
     ${colors.yellow}--session ID${colors.reset}       Show specific session by ID
     ${colors.yellow}-c, --current${colors.reset}      List all sessions for current directory
-    ${colors.yellow}-w, --watch${colors.reset}        Watch current directory session in real-time (15s idle + 1000+ tokens triggers auto-summary, press q or Ctrl+C to exit)
+    ${colors.yellow}-w, --watch${colors.reset}        Watch current directory session in real-time (press 'a' for Archer, 's' for Security, 'd' for dependencies, q or Ctrl+C to exit)
     ${colors.yellow}--archer${colors.reset}           Analyze recent conversations with LLM (requires OPENAI_API_KEY)
     ${colors.yellow}--archer-limit N${colors.reset}   Number of recent commands to analyze (default: 10)
     ${colors.yellow}--nano${colors.reset}             Use faster gpt-3.5-turbo model instead of gpt-4o-mini (faster & cheaper)
@@ -736,10 +736,11 @@ ${toolEntries.length > 0 ? `${colors.dim}│${colors.reset} Tools:\n${toolLines}
     return stats;
 }
 
-function generateToolDependencyGraph(conversation) {
+function generateToolDependencyGraph(conversation, sessionStartTime = null) {
     const toolSequence = [];
+    let totalTokens = 0;
 
-    // Extract tool usage sequence from conversation
+    // Extract tool usage sequence and count tokens from conversation
     for (const entry of conversation) {
         if (entry.type === 'assistant') {
             const content = entry.message?.content || [];
@@ -748,29 +749,68 @@ function generateToolDependencyGraph(conversation) {
                     if (item.type === 'tool_use') {
                         toolSequence.push(item.name || 'unknown');
                     }
+                    if (item.type === 'text') {
+                        totalTokens += Math.ceil(item.text.length / 4);
+                    }
                 });
             }
         }
     }
 
-    if (toolSequence.length === 0) {
-        return `${colors.yellow}No tools used in this session${colors.reset}`;
+    // Build header with session info
+    let graph = '';
+
+    if (sessionStartTime) {
+        const now = new Date();
+        const startTime = sessionStartTime.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/\//g, '-');
+
+        graph += `${colors.dim}Started: ${colors.cyan}${startTime}${colors.reset}${colors.dim} • Tokens: ${colors.yellow}${totalTokens.toLocaleString()}${colors.reset}\n\n`;
     }
 
+    if (toolSequence.length === 0) {
+        graph += `${colors.yellow}No tools used in this session${colors.reset}`;
+        return graph;
+    }
+
+    // Count occurrences of each tool
+    const toolCounts = {};
+    toolSequence.forEach(tool => {
+        toolCounts[tool] = (toolCounts[tool] || 0) + 1;
+    });
+
+    // Build unique tool sequence
+    const uniqueTools = [];
+    const seen = new Set();
+    toolSequence.forEach(tool => {
+        if (!seen.has(tool)) {
+            uniqueTools.push(tool);
+            seen.add(tool);
+        }
+    });
+
     // Build visual flow
-    let graph = `${colors.dim}┌─ ${colors.cyan}Tool Dependency Flow${colors.reset}\n`;
+    graph += `${colors.dim}┌─ ${colors.cyan}Tool Flow${colors.reset}\n`;
     graph += `${colors.dim}│${colors.reset}\n`;
 
-    for (let i = 0; i < toolSequence.length; i++) {
-        const tool = toolSequence[i];
-        const isLast = i === toolSequence.length - 1;
+    for (let i = 0; i < uniqueTools.length; i++) {
+        const tool = uniqueTools[i];
+        const count = toolCounts[tool];
+        const isLast = i === uniqueTools.length - 1;
         const connector = isLast ? '└─' : '├─';
         const nextConnector = isLast ? '  ' : '│ ';
 
-        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset}\n`;
+        graph += `${colors.dim}│${colors.reset} ${connector} ${colors.blue}${tool}${colors.reset} ${colors.yellow}(${count})${colors.reset}\n`;
 
-        // Show if next tool is different (transition)
-        if (i < toolSequence.length - 1 && toolSequence[i] !== toolSequence[i + 1]) {
+        // Show arrow if not last
+        if (!isLast) {
             graph += `${colors.dim}│${colors.reset} ${nextConnector}  ↓\n`;
         }
     }
@@ -821,6 +861,7 @@ async function watchCurrentSession() {
 
     const sessionFile = fileStats[0].filePath;
     const sessionId = path.basename(fileStats[0].file, '.jsonl');
+    const sessionStartTime = new Date(); // Track when watch session started
 
     let lastMessageCount = 0;
     let isExiting = false;
@@ -907,7 +948,7 @@ async function watchCurrentSession() {
             if (key && key.name === 'd') {
                 const currentConversation = await readConversation(sessionFile);
                 console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                console.log(generateToolDependencyGraph(currentConversation));
+                console.log(generateToolDependencyGraph(currentConversation, sessionStartTime));
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
             }
         });

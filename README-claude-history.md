@@ -4,8 +4,11 @@ A CLI tool to spy on your Claude Code conversations in real-time. View history i
 
 ## Features
 
-- **Watch Mode** - Live monitoring of current Claude session with auto-summaries
-- **🏹 Archer Analysis** - AI-powered conversation analysis (Intent, Response Alignment, Quality Assessment)
+- **Watch Mode** - Live monitoring of current Claude session with session stats and manual analysis controls
+- **🏹 Archer Analysis** - AI-powered conversation analysis (Intent, Security Tasks, Quality Assessment)
+- **🔒 Security Analysis** - Manual security-focused evaluation of implementations and bad practices
+- **📊 Tool Dependency Graph** - Visual ASCII tree showing tool usage patterns and workflows
+- **Session Stats** - Real-time metrics: message counts, token usage, tool breakdown, message rate
 - **Full Tool Call Visibility** - See exact input parameters and output for every tool Claude uses
 - **Session Management** - List, search, and filter conversations across projects
 - **Search & Filter** - Find conversations by keywords, dates, or project
@@ -43,12 +46,20 @@ export PATH="$PATH:/Users/marcokotrotsos/projects/james"
 ### 1. Watch Current Session (Live Mode)
 ```bash
 cd /path/to/your/project
-export OPENAI_API_KEY='sk-...'  # Optional: for auto-summaries
+export OPENAI_API_KEY='sk-...'  # Optional: for analysis features
 ./claude-history --watch
 ```
-- Displays messages in real-time
-- Auto-generates summaries after 15 seconds idle + 1000+ new tokens
+**Features:**
+- Shows splash screen and session stats at startup
+- Displays new messages in real-time as they arrive
+- Clean, minimal display - no periodic updates
 - Press `q` or `Ctrl+C` to exit
+
+**Keyboard Controls:**
+- **'a'** - Run Archer analysis (AI conversation review)
+- **'s'** - Run Security analysis (evaluate secure implementations)
+- **'d'** - Show tool dependency graph (visualize tool usage patterns)
+- **'q' or Ctrl+C** - Exit watch mode
 
 ### 2. View All Sessions
 ```bash
@@ -79,7 +90,7 @@ Search for keyword in last 10 entries, showing full responses.
 |---------|---------|---------|
 | `--help`, `-h` | Show help message | `./claude-history --help` |
 | `--current`, `-c` | List all sessions for current directory | `./claude-history --current` |
-| `--watch`, `-w` | Watch session in real-time (15s idle + 1000+ tokens = auto-summary) | `./claude-history --watch` |
+| `--watch`, `-w` | Watch session in real-time with keyboard controls | `./claude-history --watch` |
 | `--session ID` | View specific session by ID | `./claude-history --session abc123` |
 | `--archer` | AI analysis of recent conversations | `./claude-history --archer` |
 | `--stats` | Show usage statistics | `./claude-history --stats` |
@@ -172,67 +183,54 @@ Search for keyword in last 10 entries, showing full responses.
 ### Basic Usage
 ```bash
 cd /path/to/your/project
+export OPENAI_API_KEY='sk-...'  # Optional: for analysis features
 ./claude-history --watch
 ```
 
-### Features
-- **Real-time message display** - See Claude's responses as they arrive
-- **Auto-summary trigger** - After 15 seconds idle + 1000+ new tokens:
-  - Generates AI analysis of recent conversation
-  - Shows in orange inline with watch output
-  - Includes Intent, Response Alignment, Assessment
-- **Live monitoring** - Perfect for long-running tasks
-- **Easy exit** - Press `q` or `Ctrl+C` to quit
+### What You See
+- **Splash screen** with app name and version
+- **Session stats** at startup showing: message count, tokens, tools used, message rate
+- **Real-time messages** - New Claude responses appear as they arrive
+- **Clean display** - No periodic updates or status spam
 
-### Auto-Summary Details
+### Keyboard Controls in Watch Mode
 
-The auto-summary triggers when BOTH conditions are met:
+| Key | Action |
+|-----|--------|
+| **'a'** | Run Archer analysis on recent conversation |
+| **'s'** | Run Security analysis (manual security review) |
+| **'d'** | Show tool dependency graph |
+| **'q' or Ctrl+C** | Exit watch mode |
 
-1. **Claude is idle for 15 seconds** - No new messages
-2. **1000+ new tokens generated** - Enough content to analyze
-
-Example output:
+### Example Output
 ```
-Watch Mode - Current Directory: /Users/name/projects/app
-Watching session: abc123def456
-💡 Tip: If Claude is idle for 15 seconds with 1000+ new tokens, auto-generates summary
+claude-code-spy v2.0.17 • 🕵️  Real-time monitoring
 
-[User message and Claude's response displayed in real-time]
+┌─ Session Stats
+│ Messages: 42 (15 user, 27 assistant)
+│ Tokens: 8234 (196/msg) • Rate: 0 msg/min
+│ Tools:
+  • Bash(12) • Edit(8) • Read(5) • Write(2)
+└
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Claude idle for 15 seconds (1247 new tokens), generating summary...
+[Claude messages appear here in real-time]
 
-🏹 ARCHER SUMMARY
-
-Intent Summary: You asked Claude to implement a new feature...
-Response Alignment: Claude properly understood the requirement...
-Logical Steps: Claude took appropriate steps...
-Potential Misalignments: None identified
-Overall Assessment: High quality conversation...
-
-Model: gpt-4o-mini | Tokens: 342
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Resuming watch... (12 messages so far)
+[Press 'a' for Archer, 's' for Security, 'd' for dependencies, 'q' to exit]
 ```
 
 ### Watch Mode with Options
 ```bash
-# Use faster model for summaries
+# Use faster model for analysis
 ./claude-history --watch --nano
 
-# Analyze more interactions per summary
+# Analyze more interactions (default: 10)
 ./claude-history --watch --archer-limit 20
 
 # Combine options
 ./claude-history --watch --nano --archer-limit 15
 ```
 
-### Requirements for Auto-Summary
-- `OPENAI_API_KEY` environment variable set
-- If missing, watch continues without summaries
-
-### Setup Auto-Summary
+### Setup for Analysis Features
 ```bash
 # Get your OpenAI API key from https://platform.openai.com/api-keys
 
@@ -252,7 +250,7 @@ Analyzes recent conversations with Claude to evaluate quality:
 
 1. **Intent Summary** - What were you trying to accomplish?
 2. **Response Alignment** - Did Claude properly address your intent?
-3. **Logical Steps** - Were Claude's steps appropriate?
+3. **Security Tasks** - Potential security improvements or concerns
 4. **Potential Misalignments** - Any gaps or misunderstandings?
 5. **Overall Assessment** - Quality verdict and helpfulness rating
 
@@ -296,13 +294,94 @@ ARCHER ANALYSIS
 
 Intent Summary: You asked Claude to refactor a React component...
 Response Alignment: Claude understood the request and provided...
-Logical Steps: The refactoring steps were well-reasoned...
+Security Tasks: Consider adding input validation and error handling...
 Potential Misalignments: One suggestion could be improved...
 Overall Assessment: Very helpful conversation with minor notes...
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Model: gpt-4o-mini | Tokens used: 234
 ```
+
+---
+
+## 🔒 Security Analysis (Manual Review)
+
+### What It Does
+Manual security-focused evaluation of Claude's implementations to identify:
+
+- **CRITICAL** issues - Security vulnerabilities, unsafe patterns, data exposure risks
+- **WARNING** issues - Best practice violations, potential edge cases, hardening opportunities
+- Code quality and security patterns
+- Potential improvements for production use
+
+### Basic Usage
+Press **'s'** during watch mode to run security analysis:
+
+```bash
+cd /path/to/your/project
+./claude-history --watch
+# Press 's' to trigger security analysis
+```
+
+### How It Works
+- Manual trigger (not automatic like Archer)
+- Analyzes recent conversation context
+- Returns severity-coded findings (CRITICAL in red, WARNING in yellow)
+- Helps identify security gaps in AI-suggested code
+
+### Example Output
+```
+🔒 Security Analysis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyzing recent interactions...
+
+CRITICAL: Missing input validation on user-facing API endpoint
+WARNING: Error messages may leak sensitive information
+WARNING: Consider adding rate limiting for production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## 📊 Tool Dependency Graph (Visual Workflow)
+
+### What It Does
+Shows a visual ASCII tree of how tools are being used in sequence during your current session:
+
+- Displays tools in the order they're called
+- Shows exact tool names and call counts
+- Fresh start each time you run the spy
+- Displays session datetime and tokens burned
+
+### Basic Usage
+Press **'d'** during watch mode to view the dependency graph:
+
+```bash
+cd /path/to/your/project
+./claude-history --watch
+# Press 'd' to show tool dependency graph
+```
+
+### Example Output
+```
+Started: 2025-10-25 14:32:15 • Tokens: 2,567
+
+┌─ Tool Flow
+│
+├─ Read (4)
+│  ↓
+├─ Grep (3)
+│  ↓
+├─ Edit (7)
+│  ↓
+├─ Bash (5)
+│  ↓
+└─ Write (2)
+```
+
+Each tool shows how many times it's been called since watch mode started. The session start time and token count are displayed at the top to help you track resource usage.
 
 ---
 
@@ -402,10 +481,10 @@ Pattern: `-` + path segments joined with `-`
 
 ### Token Counting
 
-Watch mode estimates tokens for auto-summary:
+Watch mode estimates tokens burned during your session:
 - Rough estimate: ~4 characters per token
-- Only counts text content from assistant messages
-- Resets after each summary
+- Counts text content from assistant messages
+- Shown in the dependency graph and session stats
 
 ---
 
@@ -425,11 +504,6 @@ Watch mode estimates tokens for auto-summary:
 ## Troubleshooting
 
 ### Watch Mode Issues
-
-**Issue: Auto-summary not triggering**
-- Check `OPENAI_API_KEY` is set: `echo $OPENAI_API_KEY`
-- Verify 1000+ tokens have been generated
-- Confirm Claude is idle for 15+ seconds
 
 **Issue: No sessions found**
 - Make sure you're in a Claude Code project directory
@@ -490,4 +564,4 @@ Watch mode estimates tokens for auto-summary:
 
 ## Version
 
-v2.0 - Watch mode with auto-summaries, full tool visibility, Archer analysis
+v2.0.17 - Watch mode with real-time monitoring, Archer analysis, Security analysis, Tool dependency graph, and full tool visibility
