@@ -1526,7 +1526,23 @@ async function watchCurrentSession() {
                 const newTokens = totalTokens - lastAnalysisTokenCount;
                 const idleSeconds = Math.floor(idleTime / 1000);
 
-                // Silently wait - no status display during idle time, no auto-triggers
+                // Auto-trigger Archer analysis after 15 seconds idle and 1000+ new tokens
+                if (idleSeconds >= 15 && newTokens >= 1000 && !analysisPending && apiKey) {
+                    analysisPending = true;
+                    lastAnalysisTokenCount = totalTokens;
+
+                    console.log(`\n${colors.dim}Idle for ${idleSeconds}s and ${newTokens} tokens - triggering auto-summary...${colors.reset}\n`);
+
+                    try {
+                        await runArcherAnalysisInline(sessionFile, watchStartIndex);
+                    } catch (err) {
+                        console.error(`${colors.red}Auto-summary error: ${err.message}${colors.reset}`);
+                    }
+
+                    console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                    console.log(`${colors.dim}Resuming watch...${colors.reset}\n`);
+                    analysisPending = false;
+                }
             }
         } catch (e) {
             // File might be in the middle of being written, ignore
