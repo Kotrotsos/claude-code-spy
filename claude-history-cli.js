@@ -1261,6 +1261,7 @@ async function watchCurrentSession() {
     const currentPath = process.cwd();
     const encodedPath = encodeProjectPath(currentPath);
     const projectDir = path.join(projectsPath, encodedPath);
+    const apiKey = process.env.OPENAI_API_KEY;
 
     // Show fun splash screen
     showSplashScreen();
@@ -1583,25 +1584,32 @@ async function watchCurrentSession() {
                 const idleSeconds = Math.floor(idleTime / 1000);
 
                 // Auto-trigger Archer analysis after 15 seconds idle and 1000+ new tokens
-                if (idleSeconds >= 15 && newTokens >= 1000 && !analysisPending && apiKey) {
-                    analysisPending = true;
-                    lastAnalysisTokenCount = totalTokens;
+                if (idleSeconds >= 15 && newTokens >= 1000 && !analysisPending) {
+                    if (!apiKey) {
+                        console.log(`\n${colors.yellow}⚠ Archer needs OPENAI_API_KEY to run auto-summary${colors.reset}\n`);
+                        appendToMarkdownLog(config.logFile, 'Auto-summary skipped: OPENAI_API_KEY not set');
+                    } else {
+                        analysisPending = true;
+                        lastAnalysisTokenCount = totalTokens;
 
-                    console.log(`\n${colors.dim}Idle for ${idleSeconds}s and ${newTokens} tokens - triggering auto-summary...${colors.reset}\n`);
-                    appendToMarkdownLog(config.logFile, `Idle for ${idleSeconds}s and ${newTokens} tokens - triggering auto-summary...`);
+                        console.log(`\n${colors.dim}Idle for ${idleSeconds}s and ${newTokens} tokens...${colors.reset}\n`);
+                        console.log(`${colors.orange}🏹 Archer is contemplating...${colors.reset}\n`);
+                        appendToMarkdownLog(config.logFile, `Idle for ${idleSeconds}s and ${newTokens} tokens`);
+                        appendToMarkdownLog(config.logFile, 'Archer is contemplating...');
 
-                    try {
-                        await runArcherAnalysisInline(sessionFile, watchStartIndex);
-                    } catch (err) {
-                        console.error(`${colors.red}Auto-summary error: ${err.message}${colors.reset}`);
-                        appendToMarkdownLog(config.logFile, `Auto-summary error: ${err.message}`);
+                        try {
+                            await runArcherAnalysisInline(sessionFile, watchStartIndex);
+                        } catch (err) {
+                            console.error(`${colors.red}Auto-summary error: ${err.message}${colors.reset}`);
+                            appendToMarkdownLog(config.logFile, `Auto-summary error: ${err.message}`);
+                        }
+
+                        console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+                        console.log(`${colors.dim}Resuming watch...${colors.reset}\n`);
+                        appendToMarkdownLog(config.logFile, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        appendToMarkdownLog(config.logFile, 'Resuming watch...');
+                        analysisPending = false;
                     }
-
-                    console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-                    console.log(`${colors.dim}Resuming watch...${colors.reset}\n`);
-                    appendToMarkdownLog(config.logFile, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    appendToMarkdownLog(config.logFile, 'Resuming watch...');
-                    analysisPending = false;
                 }
             }
         } catch (e) {
@@ -1763,6 +1771,7 @@ Format with empty lines between sections. Be concise and pragmatic.`
 
         // Display analysis in orange (inline format with proper spacing)
         console.log(`${colors.bright}${colors.orange}🏹 ARCHER SUMMARY${colors.reset}\n`);
+        appendToMarkdownLog(config.logFile, '## 🏹 ARCHER SUMMARY\n');
 
         // Display analysis with proper paragraph spacing
         const paragraphs = analysis.split('\n\n');
@@ -1771,14 +1780,17 @@ Format with empty lines between sections. Be concise and pragmatic.`
             lines.forEach(line => {
                 if (line.trim()) {
                     console.log(`${colors.orange}${line}${colors.reset}`);
+                    appendToMarkdownLog(config.logFile, line);
                 }
             });
             if (idx < paragraphs.length - 1) {
                 console.log(''); // Empty line between paragraphs
+                appendToMarkdownLog(config.logFile, '');
             }
         });
 
         console.log(`\n${colors.dim}Model: ${model}${config.nanoMode ? ' (nano/fast)' : ''} | Tokens: ${data.usage.total_tokens}${colors.reset}`);
+        appendToMarkdownLog(config.logFile, `\nModel: ${model}${config.nanoMode ? ' (nano/fast)' : ''} | Tokens: ${data.usage.total_tokens}`);
 
     } catch (error) {
         console.error(`\n${colors.red}Error generating summary: ${error.message}${colors.reset}`);
