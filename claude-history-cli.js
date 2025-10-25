@@ -44,7 +44,8 @@ let config = {
     archerMode: false,
     archerLimit: 10,
     nanoMode: false,
-    minutesSince: null
+    minutesSince: null,
+    logFile: null
 };
 
 // Parse arguments
@@ -112,6 +113,9 @@ for (let i = 0; i < args.length; i++) {
         case '--minutes-since':
             config.minutesSince = parseInt(args[++i]);
             break;
+        case '--log-file':
+            config.logFile = args[++i];
+            break;
     }
 }
 
@@ -136,6 +140,7 @@ ${colors.cyan}OPTIONS:${colors.reset}
     ${colors.yellow}-c, --current${colors.reset}      List all sessions for current directory
     ${colors.yellow}-w, --watch${colors.reset}        Watch current directory session in real-time (press 'a' for Archer, 's' for Security, 'd' for dependencies, q or Ctrl+C to exit)
     ${colors.yellow}--minutes-since N${colors.reset}  Look back N minutes in the log (use with --watch to include historical context)
+    ${colors.yellow}--log-file PATH${colors.reset}    Log watch mode output to a markdown file (use with --watch)
     ${colors.yellow}--archer${colors.reset}           Analyze recent conversations with LLM (requires OPENAI_API_KEY)
     ${colors.yellow}--archer-limit N${colors.reset}   Number of recent commands to analyze (default: 10)
     ${colors.yellow}--nano${colors.reset}             Use faster gpt-3.5-turbo model instead of gpt-4o-mini (faster & cheaper)
@@ -676,6 +681,24 @@ async function showSpecificSession(sessionId) {
 
     for (const entry of conversation) {
         displayMessage(entry, true);
+    }
+}
+
+// Helper function to strip ANSI color codes
+function stripAnsiCodes(text) {
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+// Helper function to append text to markdown log file
+function appendToMarkdownLog(logFile, text) {
+    if (!logFile) return;
+
+    try {
+        // Strip ANSI codes before writing to file
+        const cleanText = stripAnsiCodes(text);
+        fs.appendFileSync(logFile, cleanText + '\n', 'utf8');
+    } catch (err) {
+        console.error(`${colors.red}Error writing to log file: ${err.message}${colors.reset}`);
     }
 }
 
@@ -1469,8 +1492,22 @@ async function watchCurrentSession() {
 
     // Show initial stats
     const watchStartTime = Date.now();
-    console.log(generateStatsDisplay(initialConversation, watchStartIndex));
+
+    // Initialize markdown log file if requested
+    if (config.logFile) {
+        try {
+            const header = `# Claude Code Spy Watch Log\n\nStarted: ${new Date().toISOString()}\n\n`;
+            fs.writeFileSync(config.logFile, header, 'utf8');
+        } catch (err) {
+            console.error(`${colors.red}Error initializing log file: ${err.message}${colors.reset}`);
+        }
+    }
+
+    const statsDisplay = generateStatsDisplay(initialConversation, watchStartIndex);
+    console.log(statsDisplay);
+    appendToMarkdownLog(config.logFile, statsDisplay);
     console.log('');
+    appendToMarkdownLog(config.logFile, '');
 
     // Track idle time for auto-summary
     let lastMessageTime = Date.now();
@@ -1495,9 +1532,28 @@ async function watchCurrentSession() {
 
                 console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                 console.log(`${colors.green}New message(s) received!${colors.reset}\n`);
+                appendToMarkdownLog(config.logFile, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                appendToMarkdownLog(config.logFile, 'New message(s) received!');
+                appendToMarkdownLog(config.logFile, '');
 
                 for (const entry of newMessages) {
                     displayMessage(entry, false);
+                    // Log the entry to markdown file as well
+                    if (entry.type === 'user') {
+                        appendToMarkdownLog(config.logFile, `**User:** ${entry.input || ''}`);
+                    } else if (entry.type === 'assistant') {
+                        const content = entry.message?.content || [];
+                        let text = '';
+                        if (Array.isArray(content)) {
+                            content.forEach(item => {
+                                if (item.type === 'text') {
+                                    text += item.text || '';
+                                }
+                            });
+                        }
+                        appendToMarkdownLog(config.logFile, `**Assistant:** ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`);
+                    }
+                    appendToMarkdownLog(config.logFile, '');
                 }
 
                 lastMessageCount = currentConversation.length;
@@ -1532,15 +1588,19 @@ async function watchCurrentSession() {
                     lastAnalysisTokenCount = totalTokens;
 
                     console.log(`\n${colors.dim}Idle for ${idleSeconds}s and ${newTokens} tokens - triggering auto-summary...${colors.reset}\n`);
+                    appendToMarkdownLog(config.logFile, `Idle for ${idleSeconds}s and ${newTokens} tokens - triggering auto-summary...`);
 
                     try {
                         await runArcherAnalysisInline(sessionFile, watchStartIndex);
                     } catch (err) {
                         console.error(`${colors.red}Auto-summary error: ${err.message}${colors.reset}`);
+                        appendToMarkdownLog(config.logFile, `Auto-summary error: ${err.message}`);
                     }
 
                     console.log(`${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
                     console.log(`${colors.dim}Resuming watch...${colors.reset}\n`);
+                    appendToMarkdownLog(config.logFile, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    appendToMarkdownLog(config.logFile, 'Resuming watch...');
                     analysisPending = false;
                 }
             }
