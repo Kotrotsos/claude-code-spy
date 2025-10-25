@@ -671,10 +671,36 @@ async function showSpecificSession(sessionId) {
     }
 }
 
+function showSplashScreen() {
+    // Read version from package.json
+    let version = '2.0.x';
+    try {
+        const packagePath = path.join(__dirname, 'package.json');
+        const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+        version = pkg.version;
+    } catch (e) {
+        // Fallback if package.json not found
+    }
+
+    const splash = `
+${colors.bright}${colors.cyan}
+   ◄███►     claude-code-spy
+  ◄█████►    v${version}
+ ◄███████►
+  ◄█████►    🕵️  Real-time monitoring
+   ◄███►
+${colors.reset}`;
+
+    console.log(splash);
+}
+
 async function watchCurrentSession() {
     const currentPath = process.cwd();
     const encodedPath = encodeProjectPath(currentPath);
     const projectDir = path.join(projectsPath, encodedPath);
+
+    // Show fun splash screen
+    showSplashScreen();
 
     console.log(`${colors.bright}${colors.cyan}Watch Mode - Current Directory:${colors.reset} ${currentPath}`);
 
