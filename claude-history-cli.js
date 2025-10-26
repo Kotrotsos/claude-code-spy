@@ -424,8 +424,7 @@ async function main() {
     }
 
     if (config.watchMode) {
-        // Watch mode not yet refactored - use backup
-        const backup = require('./claude-history-cli.js.backup');
+        await watchCurrentSession();
         return;
     }
 
