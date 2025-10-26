@@ -4,7 +4,7 @@
   "description": "Spy on your Claude Code conversations - Real-time monitoring with AI-powered summaries and full tool visibility",
   "main": "claude-history-cli.js",
   "bin": {
-    "claude-code-spy": "./claude-history"
+    "claude-code-spy": "claude-history"
   },
   "preferGlobal": true,
   "engines": {
@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kotrotsos/claude-code-spy"
+    "url": "git+https://github.com/kotrotsos/claude-code-spy.git"
   },
   "bugs": {
     "url": "https://github.com/kotrotsos/claude-code-spy/issues"
