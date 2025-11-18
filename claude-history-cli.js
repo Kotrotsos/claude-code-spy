@@ -261,8 +261,8 @@ async function findSessionFile(projectPath, timestamp) {
         return null;
     }
 
-    // Find the most likely session file based on timestamp
-    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
+    // Find the most likely session file based on timestamp (exclude agent subprocess files)
+    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
 
     // Find the session file that contains entries around the same time
     for (const file of files) {
@@ -527,8 +527,8 @@ async function listCurrentProjectSessions() {
         return;
     }
 
-    // List all .jsonl files (session transcripts)
-    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
+    // List all .jsonl files (session transcripts, exclude agent subprocess files)
+    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
 
     if (files.length === 0) {
         console.log(`${colors.yellow}No conversation sessions found in this project${colors.reset}`);
@@ -1271,8 +1271,8 @@ async function watchCurrentSession() {
         return;
     }
 
-    // Find the most recent session file
-    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
+    // Find the most recent session file (exclude agent subprocess files)
+    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
 
     if (files.length === 0) {
         console.log(`${colors.yellow}No conversation sessions found. Waiting for new session...${colors.reset}`);
@@ -1280,7 +1280,7 @@ async function watchCurrentSession() {
 
         // Watch for new files
         let watchInterval = setInterval(() => {
-            const newFiles = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
+            const newFiles = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
             if (newFiles.length > 0) {
                 clearInterval(watchInterval);
                 watchCurrentSession(); // Restart with new session
@@ -2004,8 +2004,8 @@ async function runArcherAnalysis() {
         return;
     }
 
-    // Find the most recent session file
-    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
+    // Find the most recent session file (exclude agent subprocess files)
+    const files = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'));
 
     if (files.length === 0) {
         console.log(`${colors.yellow}No conversation sessions found in this project${colors.reset}`);
